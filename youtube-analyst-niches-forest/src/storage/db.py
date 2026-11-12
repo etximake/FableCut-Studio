@@ -64,10 +64,11 @@ class DatabaseManager:
                 return VisualActionTimeline(**json.loads(row["timeline_json"]))
         return None
 
-    def save_commentary_script(self, script: CapCutCommentaryInterchange):
+    def save_commentary_script(self, script: CapCutCommentaryInterchange) -> int:
+        """Lưu thêm 1 phiên bản kịch bản (append, không ghi đè). Trả về id dòng mới."""
         meta = script.video_metadata
         with self._get_connection() as conn:
-            conn.execute("""
+            cursor = conn.execute("""
                 INSERT INTO commentary_scripts (video_id, skill_id, language, script_json)
                 VALUES (?, ?, ?, ?);
             """, (
@@ -77,6 +78,7 @@ class DatabaseManager:
                 script.model_dump_json()
             ))
             conn.commit()
+            return cursor.lastrowid
 
     def get_latest_script(self, video_id: str, skill_id: Optional[str] = None) -> Optional[CapCutCommentaryInterchange]:
         with self._get_connection() as conn:

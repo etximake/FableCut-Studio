@@ -4,6 +4,9 @@ let currentInputMode = "url";
 let currentSelectedFile = null;
 let currentResult = null;
 let currentPlayingSfxBtn = null;
+// SPEC-01: theo dõi bản sửa chưa lưu trong giao diện review
+let isScriptDirty = false;
+let lastSavedAt = null;
 
 // Initialize on page load
 document.addEventListener("DOMContentLoaded", () => {
@@ -15,6 +18,14 @@ document.addEventListener("DOMContentLoaded", () => {
   fetchSkills();
   fetchTemplates();
   fetchTtsVoices();
+  ensureSaveBar();
+  // SPEC-01: cảnh báo khi rời trang mà còn thay đổi chưa lưu
+  window.addEventListener("beforeunload", (e) => {
+    if (isScriptDirty) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+  });
 });
 
 async function fetchTemplates() {
@@ -299,6 +310,7 @@ async function submitVideoProcess() {
 
     const data = await res.json();
     currentResult = data;
+    lastSavedAt = null;
     renderFullResult(data);
     showToast("Phân tích và tạo kịch bản CapCut thành công!");
 
@@ -386,6 +398,10 @@ function renderFullResult(data) {
 function renderCommentarySegments(capcutJson) {
   if (!capcutJson) return;
 
+  // SPEC-01: nội dung vừa render là trạng thái mới nhất từ server -> hết "chưa lưu"
+  isScriptDirty = false;
+  updateSaveStatus();
+
   const meta = capcutJson.video_metadata || {};
   document.getElementById("metaDuration").innerText = `${meta.duration_seconds || 45}s`;
   document.getElementById("metaTotalWords").innerText = meta.total_words || 0;
@@ -446,6 +462,7 @@ function updateSegmentViTranslation(index, newText) {
   const segments = currentResult.capcut_json.segments;
   if (segments && segments[index]) {
     segments[index].voiceover_vi_translation = newText.trim();
+    markScriptDirty();
   }
 }
 
@@ -454,6 +471,7 @@ function updateSegmentVoiceover(index, newText) {
   const segments = currentResult.capcut_json.segments;
   if (segments && segments[index]) {
     segments[index].voiceover = newText;
+    markScriptDirty();
   }
 
   // Recalculate Words and WPM
@@ -465,6 +483,84 @@ function updateSegmentVoiceover(index, newText) {
   const wpmBadge = document.getElementById("metaWpm");
   wpmBadge.innerText = `${wpm} WPM`;
   wpmBadge.className = (wpm >= 115 && wpm <= 150) ? "wpm-badge wpm-good" : "wpm-badge wpm-fast";
+}
+
+// SPEC-01: nút Lưu bản sửa + trạng thái "Chưa lưu / Đã lưu lúc HH:MM"
+function ensureSaveBar() {
+  if (document.getElementById("btnSaveScript")) return;
+  const actions = document.querySelector(".studio-actions");
+  if (!actions) return;
+  const status = document.createElement("span");
+  status.id = "saveScriptStatus";
+  status.style.cssText = "align-self:center;font-size:13px;opacity:0.85;";
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "btn-secondary";
+  btn.id = "btnSaveScript";
+  btn.innerHTML = "<span>💾</span> <span>Lưu bản sửa</span>";
+  btn.onclick = saveEditedScript;
+  actions.prepend(status);
+  actions.prepend(btn);
+  updateSaveStatus();
+}
+
+function updateSaveStatus() {
+  const el = document.getElementById("saveScriptStatus");
+  if (!el) return;
+  if (isScriptDirty) {
+    el.innerText = "● Chưa lưu thay đổi";
+  } else if (lastSavedAt) {
+    el.innerText = `Đã lưu lúc ${lastSavedAt}`;
+  } else {
+    el.innerText = "";
+  }
+}
+
+function markScriptDirty() {
+  if (!isScriptDirty) {
+    isScriptDirty = true;
+    updateSaveStatus();
+  }
+}
+
+// SPEC-01: lưu bản kịch bản đã sửa lên server (append phiên bản mới, không ghi đè)
+async function saveEditedScript() {
+  if (!currentResult || !currentResult.video_id || !currentResult.capcut_json) {
+    showToast("Chưa có kịch bản để lưu!");
+    return false;
+  }
+
+  const script = currentResult.capcut_json;
+  // Cập nhật lại tổng số từ / WPM trong metadata theo đúng nội dung đã sửa
+  const totalWords = (script.segments || []).reduce((sum, s) => sum + (s.voiceover || "").trim().split(/\s+/).filter(Boolean).length, 0);
+  const duration = script.video_metadata.duration_seconds || 45;
+  script.video_metadata.total_words = totalWords;
+  script.video_metadata.average_wpm = Math.round((totalWords / duration) * 60);
+
+  const btn = document.getElementById("btnSaveScript");
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch(`/api/v1/commentary/${currentResult.video_id}/script`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(script)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Lưu bản sửa thất bại.");
+    }
+    await res.json();
+    isScriptDirty = false;
+    lastSavedAt = new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+    updateSaveStatus();
+    showToast("Đã lưu bản sửa!");
+    return true;
+  } catch (err) {
+    alert("Lỗi lưu bản sửa: " + err.message);
+    return false;
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 // SFX Audio Playback
@@ -508,6 +604,11 @@ async function handleQuickRewrite() {
     return;
   }
 
+  // SPEC-01: viết lại thay toàn bộ kịch bản, hỏi trước khi làm mất bản sửa chưa lưu
+  if (isScriptDirty && !confirm("Bạn có thay đổi chưa lưu. Viết lại sẽ thay toàn bộ kịch bản bằng bản mới và mất các sửa đổi. Tiếp tục?")) {
+    return;
+  }
+
   const btn = document.getElementById("btnRewrite");
   btn.disabled = true;
   btn.innerHTML = '<span>⏳</span> Đang đổi phong cách & thu âm...';
@@ -536,6 +637,7 @@ async function handleQuickRewrite() {
 
     const newScript = await res.json();
     currentResult.capcut_json = newScript;
+    lastSavedAt = null;
     renderCommentarySegments(newScript);
 
     // Cập nhật lại audio player nếu có TTS
@@ -561,6 +663,13 @@ async function regenerateTTSVoiceover() {
   if (!currentResult || !currentResult.video_id) {
     alert("Vui lòng phân tích 1 video trước khi tạo giọng đọc!");
     return;
+  }
+
+  // SPEC-01: lưu bản sửa trước khi tạo lại giọng đọc, để TTS đọc đúng bản đã sửa.
+  // Lưu thất bại thì dừng, không chạy TTS bằng kịch bản cũ.
+  if (isScriptDirty) {
+    const saved = await saveEditedScript();
+    if (!saved) return;
   }
 
   const btn = document.getElementById("btnRegenTTS");

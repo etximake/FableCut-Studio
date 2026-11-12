@@ -9,6 +9,27 @@ from src.models.schemas import CapCutCommentaryInterchange
 
 logger = logging.getLogger(__name__)
 
+
+def validate_interchange(interchange: dict) -> None:
+    """Validate an interchange dict against the FableCut input schema.
+
+    Raises ValueError on schema violations, FileNotFoundError when the schema
+    file is missing, and RuntimeError when the jsonschema package is absent.
+    Used by export() and by the SPEC-01 save endpoint (validate before saving).
+    """
+    schema_path = Path(__file__).resolve().parents[3] / "fablecut-bundle" / "schema" / "input_schema.json"
+    if not schema_path.is_file():
+        raise FileNotFoundError(f"FableCut interchange schema not found: {schema_path}")
+    try:
+        import jsonschema
+    except ImportError as exc:
+        raise RuntimeError("jsonschema is required to validate FableCut interchange exports") from exc
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    try:
+        jsonschema.Draft7Validator(schema).validate(interchange)
+    except jsonschema.exceptions.ValidationError as exc:
+        raise ValueError(f"{exc.message} at path: {'/'.join(str(p) for p in exc.path)}") from exc
+
 class ExportResult:
     """Kết quả xuất file bao gồm CapCut JSON, phụ đề SRT, Voiceover Audio, Video gốc và Hình ảnh"""
     def __init__(
@@ -180,15 +201,7 @@ class CapCutExporter:
 
         # 5. Lưu file CapCut JSON (đã bao gồm thông tin ảnh mới nhất)
         interchange = script.model_dump()
-        schema_path = Path(__file__).resolve().parents[3] / "fablecut-bundle" / "schema" / "input_schema.json"
-        if not schema_path.is_file():
-            raise FileNotFoundError(f"FableCut interchange schema not found: {schema_path}")
-        try:
-            import jsonschema
-        except ImportError as exc:
-            raise RuntimeError("jsonschema is required to validate FableCut interchange exports") from exc
-        schema = json.loads(schema_path.read_text(encoding="utf-8"))
-        jsonschema.Draft7Validator(schema).validate(interchange)
+        validate_interchange(interchange)
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(interchange, f, ensure_ascii=False, indent=2)
 

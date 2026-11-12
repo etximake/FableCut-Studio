@@ -2,6 +2,7 @@ import re
 import json
 import zipfile
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
@@ -11,6 +12,7 @@ from src.models.schemas import (
     CommentaryRequest,
     RewriteRequest,
     TTSSynthesizeRequest,
+    SaveScriptResponse,
     ProcessVideoResponse,
     VisualActionTimeline,
     CapCutCommentaryInterchange
@@ -18,7 +20,7 @@ from src.models.schemas import (
 from src.preprocessor.video_preprocessor import LocalVideoPreprocessor
 from src.analyzer.vision_engine import VisionActionEngine
 from src.analyzer.commentary_engine import CommentaryScriptEngine
-from src.exporter.capcut import CapCutExporter, ExportResult
+from src.exporter.capcut import CapCutExporter, ExportResult, validate_interchange
 from src.storage.db import db
 from src.skills.registry import registry
 from src.crawler.downloader import VideoDownloader
@@ -391,6 +393,56 @@ def rewrite_commentary(request: RewriteRequest):
         return new_script
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi viết lại kịch bản: {str(e)}")
+
+@router.post("/commentary/{video_id}/script", response_model=SaveScriptResponse)
+def save_edited_script(video_id: str, script: CapCutCommentaryInterchange):
+    """
+    SPEC-01: Lưu bản kịch bản người dùng đã sửa trong giao diện review.
+    - Body là toàn bộ CapCutCommentaryInterchange (đúng hình dạng UI đang giữ).
+    - Validate theo schema interchange trước khi lưu; sai cấu trúc -> 422, không lưu gì.
+    - Lưu append thành phiên bản mới, rồi xuất lại file JSON/SRT để mọi khâu sau
+      (TTS qua get_latest_script, tải SRT/ZIP qua file export) đọc bản mới nhất.
+    """
+    if script.video_metadata.video_id != video_id:
+        raise HTTPException(
+            status_code=400,
+            detail=f"video_id trong đường dẫn ('{video_id}') không khớp video_id trong kịch bản ('{script.video_metadata.video_id}')."
+        )
+    if not db.get_visual_timeline(video_id):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Không tìm thấy Visual Timeline cho video_id '{video_id}'. Vui lòng chạy /process-video trước."
+        )
+    try:
+        validate_interchange(script.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f"Kịch bản không hợp lệ theo schema interchange: {exc}")
+    except (FileNotFoundError, RuntimeError) as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    saved_version = db.save_commentary_script(script)
+    try:
+        exporter.export(script)
+    except Exception as exc:
+        logger.warning(f"Save script for {video_id} stored as version {saved_version} but re-export failed: {exc}")
+        raise HTTPException(status_code=500, detail=f"Đã lưu kịch bản nhưng xuất lại file thất bại: {exc}")
+
+    return SaveScriptResponse(
+        status="SUCCESS",
+        video_id=video_id,
+        saved_version=saved_version,
+        saved_at=datetime.now(timezone.utc).isoformat(),
+        segment_count=len(script.segments)
+    )
+
+
+@router.get("/commentary/{video_id}/script", response_model=CapCutCommentaryInterchange)
+def get_saved_script(video_id: str):
+    """SPEC-01: Đọc lại phiên bản kịch bản mới nhất đã lưu (kể cả bản sửa từ giao diện)."""
+    script = db.get_latest_script(video_id)
+    if not script:
+        raise HTTPException(status_code=404, detail=f"Không tìm thấy kịch bản cho video_id: {video_id}")
+    return script
 
 @router.post("/tts/synthesize")
 def synthesize_tts_endpoint(request: TTSSynthesizeRequest):
