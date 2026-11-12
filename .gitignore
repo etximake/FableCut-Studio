@@ -1,0 +1,43 @@
+# Nested repository metadata / backups
+**/.git/
+**/.git-backup/
+
+# Secrets and local environment
+**/.env
+**/.env.*
+!**/.env.example
+**/.venv/
+**/venv/
+
+# Dependencies and generated Python files
+**/node_modules/
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+
+# Build output, temporary files, logs, and local caches
+**/dist/
+**/build/
+**/out/
+**/temp/
+**/tmp/
+**/.cache/
+**/.nub-cache/
+**/*.log
+
+# Local application data and generated media
+fablecut-data/media/**
+fablecut-data/exports/**
+fablecut-data/projects/**
+FableCut/media/**
+FableCut/exports/**
+FableCut/analysis/**
+FableCut/out/**
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+Desktop.ini
+**/.vscode/
