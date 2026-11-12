@@ -1,6 +1,6 @@
 # FableCut Studio
 
-> Bộ công cụ dựng và xuất video ngắn dọc 9:16, kết hợp FableCut Editor, bộ adapter/preset và công cụ phân tích video. Tài liệu vận hành chi tiết bằng tiếng Việt nằm trong [`HUONG-DAN-SU-DUNG.md`](HUONG-DAN-SU-DUNG.md).
+> Bộ công cụ dựng và xuất video ngắn dọc 9:16, kết hợp FableCut Editor, bộ adapter/preset và công cụ phân tích video. Tài liệu vận hành chi tiết bằng tiếng Việt nằm trong [`HUONG-DAN-SU-DUNG.md`](docs/HUONG-DAN-SU-DUNG.md).
 
 ## Thành phần
 
@@ -46,7 +46,7 @@ Có thể chạy `server.bat` không có tham số để xem menu thao tác. Ser
 3. Dùng adapter trong `fablecut-bundle/adapter/` để kiểm tra/chuyển kịch bản, hoặc dựng trực tiếp trong FableCut Editor.
 4. Xem trước và xuất video; đầu ra được lưu trong `fablecut-data/exports/`.
 
-Chi tiết về định dạng file, cấu hình, MCP và các bước thao tác nằm trong [`HUONG-DAN-SU-DUNG.md`](HUONG-DAN-SU-DUNG.md) và tài liệu dưới `fablecut-bundle/docs/`.
+Chi tiết về định dạng file, cấu hình, MCP và các bước thao tác nằm trong [`HUONG-DAN-SU-DUNG.md`](docs/HUONG-DAN-SU-DUNG.md) và tài liệu dưới [`docs/`](docs/README.md).
 
 ## Dữ liệu và bảo mật
 

@@ -26,14 +26,14 @@
 
 ## 🏛️ TÀI LIỆU THIẾT KẾ CHI TIẾT
 
-Toàn bộ đặc tả kỹ thuật và kiến trúc được lưu trữ trong thư mục `design/`:
-- [`design/README.md`](./design/README.md): Danh mục tài liệu thiết kế.
-- [`design/00_overview_and_architecture.md`](./design/00_overview_and_architecture.md): Tổng quan kiến trúc & luồng dữ liệu.
-- [`design/01_local_video_preprocessor.md`](./design/01_local_video_preprocessor.md): Module tiền xử lý FFmpeg & Whisper.
-- [`design/02_two_stage_commentary_engine.md`](./design/02_two_stage_commentary_engine.md): Lõi phân tích thị giác & biên kịch 2 chặng.
-- [`design/03_skills_registry_and_prompts.md`](./design/03_skills_registry_and_prompts.md): Đặc tả hệ thống Skill biên kịch.
-- [`design/04_capcut_interchange_and_api.md`](./design/04_capcut_interchange_and_api.md): Đặc tả API REST & CapCut JSON Schema v3.
-- [`design/05_ui_ux_commentary_studio.md`](./design/05_ui_ux_commentary_studio.md): Đặc tả giao diện Commentary Studio Web UI.
+Toàn bộ đặc tả kỹ thuật và kiến trúc được lưu trữ trong thư mục [`docs/design/`](../docs/design/):
+- [`docs/design/README.md`](../docs/design/README.md): Danh mục tài liệu thiết kế.
+- [`docs/design/00_overview_and_architecture.md`](../docs/design/00_overview_and_architecture.md): Tổng quan kiến trúc & luồng dữ liệu.
+- [`docs/design/01_local_video_preprocessor.md`](../docs/design/01_local_video_preprocessor.md): Module tiền xử lý FFmpeg & Whisper.
+- [`docs/design/02_two_stage_commentary_engine.md`](../docs/design/02_two_stage_commentary_engine.md): Lõi phân tích thị giác & biên kịch 2 chặng.
+- [`docs/design/03_skills_registry_and_prompts.md`](../docs/design/03_skills_registry_and_prompts.md): Đặc tả hệ thống Skill biên kịch.
+- [`docs/design/04_capcut_interchange_and_api.md`](../docs/design/04_capcut_interchange_and_api.md): Đặc tả API REST & CapCut JSON Schema v3.
+- [`docs/design/05_ui_ux_commentary_studio.md`](../docs/design/05_ui_ux_commentary_studio.md): Đặc tả giao diện Commentary Studio Web UI.
 
 ---
 
