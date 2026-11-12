@@ -162,6 +162,14 @@ class TTSSynthesizeRequest(BaseModel):
     voice: str = Field(default="am_adam", description="ID giọng đọc")
     speed: float = Field(default=1.0, ge=0.5, le=2.0, description="Tốc độ đọc")
 
+class SaveScriptResponse(BaseModel):
+    """SPEC-01: kết quả lưu bản kịch bản người dùng đã sửa trong giao diện"""
+    status: str
+    video_id: str
+    saved_version: int = Field(description="ID dòng mới trong bảng commentary_scripts (cơ chế append, số càng lớn càng mới)")
+    saved_at: str = Field(description="Thời điểm lưu theo giờ UTC, ISO-8601")
+    segment_count: int
+
 class ProcessVideoResponse(BaseModel):
     status: str
     video_id: str

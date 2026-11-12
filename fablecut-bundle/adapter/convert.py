@@ -512,6 +512,7 @@ def build_patch_ops(
     if video_media_id:
         source = media_by_id.get(video_media_id, {})
         source_duration = float(source.get("duration") or dur)
+        cut_index = 0  # SPEC-03: global cut counter for alternating zoom
         for idx, seg in enumerate(segments):
             tr = seg["time_range"]
             start, end = float(tr["start"]), min(float(tr["end"]), dur)
@@ -542,16 +543,24 @@ def build_patch_ops(
                 if filter_name not in filter_valid or (template_allow := (template_data or {}).get("allowed_effects_only", {}).get("filters")) and filter_name not in template_allow:
                     raise ValueError(f"Unsupported/disallowed filter '{filter_name}' at segments/{idx}/style/filter")
                 props = {"fit": "cover", "volume": video_volume, "speed": speed, "filterPreset": filter_name}
+                # SPEC-03: alternate scale per cut so the <=5s retention cuts read
+                # as visible wide/close rhythm. Even cuts use the base zoom (1.0
+                # when no explicit zoom); odd cuts punch in 4%. An explicit
+                # motion.zoom stays the base for its segment.
                 if motion.get("zoom"):
-                    zoom = float(motion["zoom"])
-                    if not 0.5 <= zoom <= 4:
+                    base_zoom = float(motion["zoom"])
+                    if not 0.5 <= base_zoom <= 4:
                         raise ValueError(f"zoom must be within [0.5,4] at segments/{idx}/style/motion/zoom")
-                    props["scale"] = zoom
+                else:
+                    base_zoom = 1.0
+                punch = 1.04 if cut_index % 2 == 1 else 1.0
+                props["scale"] = round(min(4.0, max(0.5, base_zoom * punch)), 3)
                 if motion.get("shake"):
                     props.update({"shake": min(100, max(0, float(motion["shake"]))), "shakeSpeed": 8})
                 add_clip({"id": f"v1_seg_{idx+1}_{part+1}", "kind": "video", "mediaId": video_media_id, "track": "V1", "start": round(cursor, 3), "in": round(source_in, 3), "duration": round(length, 3), "name": f"{seg.get('beat','Beat')} footage", "props": props})
                 cursor += length
                 part += 1
+                cut_index += 1
 
     # 3. Add audio voiceover clip on A1
     if audio_media_id:
