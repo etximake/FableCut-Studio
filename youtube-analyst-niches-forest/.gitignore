@@ -1,0 +1,26 @@
+# Virtual Environment
+.venv/
+env/
+venv/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Large Model weights
+models/tts/*.onnx
+models/tts/*.bin
+
+# Temporary and Export Artifacts
+temp/*
+!temp/.gitkeep
+exports/*
+!exports/.gitkeep
+
+# SQLite database
+data/*.db
+
+# Environment variables
+.env.local

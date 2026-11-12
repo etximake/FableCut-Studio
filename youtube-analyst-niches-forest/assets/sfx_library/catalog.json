@@ -1,0 +1,523 @@
+{
+  "catalog_version": "2.0",
+  "library_name": "Unified YouTube Shorts SFX Library (100% Studio Foley & Real Recordings)",
+  "description": "Curated studio-quality real recordings (CC0 / Royalty-Free) replacing synthetic math waves.",
+  "items": [
+    {
+      "sfx_id": "cinematic_sub_boom",
+      "display_name": "Cinematic Sub Boom (template ID)",
+      "category": "impact",
+      "file_path": "impacts/cinematic_sub_boom.wav",
+      "tags": ["sub", "boom", "impact", "hook"],
+      "recommended_roles": ["HOOK", "PAYOFF", "CLIMAX"],
+      "duration_us": 2800000,
+      "default_gain_db": -3.0,
+      "default_fade_in_us": 1000,
+      "default_fade_out_us": 200000
+    },
+    {
+      "sfx_id": "whoosh_fast",
+      "display_name": "Fast Whoosh (template ID)",
+      "category": "transition",
+      "file_path": "transitions/whoosh_fast.wav",
+      "tags": ["whoosh", "transition", "fast"],
+      "recommended_roles": ["TRANSITION", "BUILD_UP"],
+      "duration_us": 900000,
+      "default_gain_db": -3.0,
+      "default_fade_in_us": 1000,
+      "default_fade_out_us": 100000
+    },
+    {
+      "sfx_id": "bell_ding",
+      "display_name": "Bell Ding (template ID)",
+      "category": "ui",
+      "file_path": "ui_and_accents/bell_ding.wav",
+      "tags": ["bell", "ding", "payoff"],
+      "recommended_roles": ["PAYOFF", "END"],
+      "duration_us": 1200000,
+      "default_gain_db": -3.0,
+      "default_fade_in_us": 1000,
+      "default_fade_out_us": 100000
+    },
+    {
+      "sfx_id": "tension_riser_medium",
+      "display_name": "Medium Tension Riser (template ID)",
+      "category": "riser",
+      "file_path": "risers/tension_riser_medium.wav",
+      "tags": ["riser", "tension", "climax"],
+      "recommended_roles": ["CLIMAX", "BUILD_UP"],
+      "duration_us": 2800000,
+      "default_gain_db": -3.0,
+      "default_fade_in_us": 100000,
+      "default_fade_out_us": 200000
+    },
+    {
+      "sfx_id": "soft_chime",
+      "display_name": "Soft Chime",
+      "category": "ui",
+      "file_path": "ui_and_accents/soft_chime.wav",
+      "tags": ["soft", "chime", "payoff"],
+      "recommended_roles": ["PAYOFF", "END"],
+      "duration_us": 1500000,
+      "default_gain_db": -3.0,
+      "default_fade_in_us": 1000,
+      "default_fade_out_us": 150000
+    },
+    {
+      "sfx_id": "sfx_impact_sub_boom",
+      "display_name": "Cinematic Sub Boom",
+      "category": "impact",
+      "file_path": "impacts/cinematic_sub_boom.wav",
+      "tags": [
+        "sub",
+        "boom",
+        "808",
+        "bass",
+        "heavy",
+        "hit",
+        "hook",
+        "impact"
+      ],
+      "recommended_roles": [
+        "HOOK",
+        "PAYOFF",
+        "CLIMAX"
+      ],
+      "duration_us": 2800000,
+      "default_gain_db": -3.0,
+      "default_fade_in_us": 1000,
+      "default_fade_out_us": 200000
+    },
+    {
+      "sfx_id": "sfx_impact_cinematic_thud",
+      "display_name": "Punchy Cinematic Thud",
+      "category": "impact",
+      "file_path": "impacts/cinematic_thud.wav",
+      "tags": [
+        "thud",
+        "punch",
+        "hit",
+        "impact",
+        "accent",
+        "heavy"
+      ],
+      "recommended_roles": [
+        "HOOK",
+        "CONFLICT",
+        "PROGRESS"
+      ],
+      "duration_us": 1800000,
+      "default_gain_db": -3.0,
+      "default_fade_in_us": 1000,
+      "default_fade_out_us": 100000
+    },
+    {
+      "sfx_id": "sfx_impact_metal_hit",
+      "display_name": "Heavy Metal Strike Hit",
+      "category": "impact",
+      "file_path": "impacts/metal_hit.wav",
+      "tags": [
+        "metal",
+        "strike",
+        "heavy",
+        "clang",
+        "hit",
+        "punch"
+      ],
+      "recommended_roles": [
+        "CONFLICT",
+        "HOOK"
+      ],
+      "duration_us": 1089187,
+      "default_gain_db": -4.0,
+      "default_fade_in_us": 1000,
+      "default_fade_out_us": 80000
+    },
+    {
+      "sfx_id": "sfx_trans_whoosh_fast",
+      "display_name": "Fast Whip Whoosh",
+      "category": "transition",
+      "file_path": "transitions/whoosh_fast.wav",
+      "tags": [
+        "whoosh",
+        "whip",
+        "fast",
+        "swish",
+        "transition",
+        "swipe"
+      ],
+      "recommended_roles": [
+        "SETUP",
+        "PROGRESS",
+        "RECOVERY"
+      ],
+      "duration_us": 1200000,
+      "default_gain_db": -5.0,
+      "default_fade_in_us": 1000,
+      "default_fade_out_us": 50000
+    },
+    {
+      "sfx_id": "sfx_trans_whoosh_deep",
+      "display_name": "Deep Cinematic Whoosh",
+      "category": "transition",
+      "file_path": "transitions/whoosh_deep.wav",
+      "tags": [
+        "whoosh",
+        "deep",
+        "cinematic",
+        "transition",
+        "reveal"
+      ],
+      "recommended_roles": [
+        "HOOK",
+        "SETUP",
+        "PAYOFF"
+      ],
+      "duration_us": 1334125,
+      "default_gain_db": -4.5,
+      "default_fade_in_us": 1000,
+      "default_fade_out_us": 60000
+    },
+    {
+      "sfx_id": "sfx_trans_tape_stop",
+      "display_name": "Tape Stop Deceleration",
+      "category": "transition",
+      "file_path": "transitions/tape_stop.wav",
+      "tags": [
+        "tape",
+        "stop",
+        "vinyl",
+        "rewind",
+        "glitch",
+        "cut",
+        "transition"
+      ],
+      "recommended_roles": [
+        "CONFLICT",
+        "SETUP"
+      ],
+      "duration_us": 1000000,
+      "default_gain_db": -5.0,
+      "default_fade_in_us": 1000,
+      "default_fade_out_us": 40000
+    },
+    {
+      "sfx_id": "sfx_trans_tape_rewind",
+      "display_name": "Analog Tape Rewind",
+      "category": "transition",
+      "file_path": "transitions/tape_rewind.wav",
+      "tags": [
+        "tape",
+        "rewind",
+        "vhs",
+        "analog",
+        "cassette",
+        "transition"
+      ],
+      "recommended_roles": [
+        "RECOVERY",
+        "SETUP"
+      ],
+      "duration_us": 1600000,
+      "default_gain_db": -6.0,
+      "default_fade_in_us": 1000,
+      "default_fade_out_us": 60000
+    },
+    {
+      "sfx_id": "sfx_riser_tension_short",
+      "display_name": "Short Tension Riser",
+      "category": "riser",
+      "file_path": "risers/tension_riser_short.wav",
+      "tags": [
+        "riser",
+        "tension",
+        "build",
+        "suspense",
+        "short",
+        "anticipation"
+      ],
+      "recommended_roles": [
+        "SETUP",
+        "CONFLICT",
+        "HOOK"
+      ],
+      "duration_us": 2047625,
+      "default_gain_db": -4.0,
+      "default_fade_in_us": 1000,
+      "default_fade_out_us": 50000
+    },
+    {
+      "sfx_id": "sfx_riser_tension_medium",
+      "display_name": "Medium Tension Riser",
+      "category": "riser",
+      "file_path": "risers/tension_riser_medium.wav",
+      "tags": [
+        "riser",
+        "tension",
+        "build",
+        "suspense",
+        "dramatic",
+        "climax"
+      ],
+      "recommended_roles": [
+        "CONFLICT",
+        "PAYOFF"
+      ],
+      "duration_us": 4000000,
+      "default_gain_db": -4.0,
+      "default_fade_in_us": 1000,
+      "default_fade_out_us": 100000
+    },
+    {
+      "sfx_id": "sfx_ui_mouse_click",
+      "display_name": "Optical Mouse Click",
+      "category": "ui",
+      "file_path": "ui_and_accents/mouse_click.wav",
+      "tags": [
+        "click",
+        "mouse",
+        "ui",
+        "button",
+        "tap",
+        "interface"
+      ],
+      "recommended_roles": [
+        "SETUP",
+        "PROGRESS"
+      ],
+      "duration_us": 247437,
+      "default_gain_db": -6.0,
+      "default_fade_in_us": 1000,
+      "default_fade_out_us": 20000
+    },
+    {
+      "sfx_id": "sfx_ui_camera_shutter",
+      "display_name": "DSLR Camera Shutter",
+      "category": "ui",
+      "file_path": "ui_and_accents/camera_shutter.wav",
+      "tags": [
+        "camera",
+        "shutter",
+        "photo",
+        "snapshot",
+        "flash",
+        "click",
+        "accent"
+      ],
+      "recommended_roles": [
+        "PAYOFF",
+        "HOOK",
+        "PROGRESS"
+      ],
+      "duration_us": 600000,
+      "default_gain_db": -4.5,
+      "default_fade_in_us": 1000,
+      "default_fade_out_us": 30000
+    },
+    {
+      "sfx_id": "sfx_ui_cash_coin",
+      "display_name": "Real Clinking Coins",
+      "category": "ui",
+      "file_path": "ui_and_accents/cash_coin.wav",
+      "tags": [
+        "coin",
+        "cash",
+        "money",
+        "gold",
+        "reward",
+        "win",
+        "accent"
+      ],
+      "recommended_roles": [
+        "PAYOFF",
+        "PROGRESS"
+      ],
+      "duration_us": 1200000,
+      "default_gain_db": -5.0,
+      "default_fade_in_us": 1000,
+      "default_fade_out_us": 50000
+    },
+    {
+      "sfx_id": "sfx_ui_bell_ding",
+      "display_name": "Studio Triangle Bell Ding",
+      "category": "ui",
+      "file_path": "ui_and_accents/bell_ding.wav",
+      "tags": [
+        "bell",
+        "ding",
+        "triangle",
+        "alert",
+        "notice",
+        "accent",
+        "bright"
+      ],
+      "recommended_roles": [
+        "PROGRESS",
+        "SETUP"
+      ],
+      "duration_us": 1500000,
+      "default_gain_db": -5.0,
+      "default_fade_in_us": 1000,
+      "default_fade_out_us": 100000
+    },
+    {
+      "sfx_id": "sfx_foley_water_bubble",
+      "display_name": "Real Water Bubble Plop",
+      "category": "ui",
+      "file_path": "ui_and_accents/water_bubble.wav",
+      "tags": [
+        "bubble",
+        "water",
+        "plop",
+        "liquid",
+        "foley",
+        "accent"
+      ],
+      "recommended_roles": [
+        "PROGRESS",
+        "SETUP"
+      ],
+      "duration_us": 600000,
+      "default_gain_db": -5.0,
+      "default_fade_in_us": 1000,
+      "default_fade_out_us": 30000
+    },
+    {
+      "sfx_id": "sfx_ui_pop_clean",
+      "display_name": "Clean Pop In",
+      "category": "ui",
+      "file_path": "ui_and_accents/pop_clean.wav",
+      "tags": [
+        "pop",
+        "ui",
+        "bubble",
+        "sticker",
+        "text",
+        "clean",
+        "accent"
+      ],
+      "recommended_roles": [
+        "SETUP",
+        "PROGRESS",
+        "PAYOFF"
+      ],
+      "duration_us": 400000,
+      "default_gain_db": -5.0,
+      "default_fade_in_us": 1000,
+      "default_fade_out_us": 20000
+    },
+    {
+      "sfx_id": "sfx_ui_bubble_plop",
+      "display_name": "Organic Bubble Plop",
+      "category": "ui",
+      "file_path": "ui_and_accents/bubble_plop.wav",
+      "tags": [
+        "bubble",
+        "plop",
+        "water",
+        "pop",
+        "soft",
+        "accent"
+      ],
+      "recommended_roles": [
+        "PROGRESS",
+        "SETUP"
+      ],
+      "duration_us": 242541,
+      "default_gain_db": -5.0,
+      "default_fade_in_us": 1000,
+      "default_fade_out_us": 20000
+    },
+    {
+      "sfx_id": "sfx_ui_mouth_pop",
+      "display_name": "Human Mouth Pop",
+      "category": "ui",
+      "file_path": "ui_and_accents/mouth_pop.wav",
+      "tags": [
+        "mouth",
+        "pop",
+        "foley",
+        "vocal",
+        "percussion",
+        "accent"
+      ],
+      "recommended_roles": [
+        "SETUP",
+        "PROGRESS"
+      ],
+      "duration_us": 262354,
+      "default_gain_db": -5.0,
+      "default_fade_in_us": 1000,
+      "default_fade_out_us": 20000
+    },
+    {
+      "sfx_id": "sfx_ui_keyboard_typing",
+      "display_name": "Mechanical Keyboard Typing",
+      "category": "ui",
+      "file_path": "ui_and_accents/keyboard_typing.wav",
+      "tags": [
+        "keyboard",
+        "typing",
+        "keys",
+        "text",
+        "typewriter",
+        "computer",
+        "foley"
+      ],
+      "recommended_roles": [
+        "SETUP",
+        "PROGRESS"
+      ],
+      "duration_us": 3000000,
+      "default_gain_db": -6.0,
+      "default_fade_in_us": 1000,
+      "default_fade_out_us": 80000
+    },
+    {
+      "sfx_id": "sfx_amb_suspense_drone",
+      "display_name": "Dark Suspense Pad Drone",
+      "category": "ambience",
+      "file_path": "ambience/suspense_drone.wav",
+      "tags": [
+        "ambient",
+        "drone",
+        "suspense",
+        "dark",
+        "pad",
+        "tension",
+        "ambience"
+      ],
+      "recommended_roles": [
+        "SETUP",
+        "CONFLICT"
+      ],
+      "duration_us": 6000000,
+      "default_gain_db": -14.0,
+      "default_fade_in_us": 300000,
+      "default_fade_out_us": 500000
+    },
+    {
+      "sfx_id": "sfx_amb_room_tone",
+      "display_name": "Studio Apartment Room Tone",
+      "category": "ambience",
+      "file_path": "ambience/room_tone.wav",
+      "tags": [
+        "roomtone",
+        "ambience",
+        "interior",
+        "silence",
+        "air",
+        "background"
+      ],
+      "recommended_roles": [
+        "SETUP",
+        "CONFLICT",
+        "RECOVERY"
+      ],
+      "duration_us": 8000000,
+      "default_gain_db": -18.0,
+      "default_fade_in_us": 500000,
+      "default_fade_out_us": 800000
+    }
+  ]
+}

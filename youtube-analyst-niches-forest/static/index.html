@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Video Commentary & CapCut Engine Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-icon">🎬</div>
+      <div>
+        <div class="brand-title">AI Video Commentary Studio</div>
+      </div>
+      <span class="brand-badge">CapCut v3</span>
+    </div>
+    <div class="topbar-actions">
+      <div class="status-pill" id="aiStatusPill">
+        <span class="status-dot"></span>
+        <span id="aiStatusText">AI Online</span>
+      </div>
+      <a href="/docs" target="_blank" class="docs-link">📖 Swagger API Docs</a>
+    </div>
+  </header>
+
+  <!-- MAIN 3-COLUMN STUDIO -->
+  <main class="main-studio">
+    
+    <!-- CỘT 1: NHẬP VIDEO & CẤU HÌNH -->
+    <section class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>⚙️</span>
+          <span>Đầu vào & Persona</span>
+        </div>
+      </div>
+      <div class="panel-body">
+        
+        <!-- Tabs chọn hình thức đầu vào -->
+        <div class="tab-group">
+          <button type="button" class="tab-btn active" id="tabUrlBtn" onclick="switchInputMode('url')">Link Video</button>
+          <button type="button" class="tab-btn" id="tabFileBtn" onclick="switchInputMode('file')">Tải file MP4</button>
+        </div>
+
+        <!-- Khung nhập URL -->
+        <div class="form-group" id="inputUrlGroup">
+          <label class="form-label" for="videoUrlInput">Link YouTube Shorts / TikTok / Reels:</label>
+          <input type="text" id="videoUrlInput" class="form-control" placeholder="https://www.youtube.com/shorts/..." />
+        </div>
+
+        <!-- Khung kéo thả File -->
+        <div class="form-group" id="inputFileGroup" style="display: none;">
+          <label class="form-label">Chọn video từ máy tính:</label>
+          <div class="dropzone" id="videoDropzone" onclick="document.getElementById('videoFileInput').click()">
+            <div class="dropzone-icon">📁</div>
+            <div class="dropzone-text">Kéo thả file video vào đây, hoặc click để chọn</div>
+            <div class="dropzone-file-name" id="selectedFileName"></div>
+            <input type="file" id="videoFileInput" accept="video/mp4,video/quicktime,video/mkv" style="display: none;" onchange="handleFileSelected(this.files)" />
+          </div>
+        </div>
+
+        <!-- Chọn Skill biên kịch -->
+        <div class="form-group">
+          <label class="form-label">Chọn Persona / Skill biên kịch:</label>
+          <div class="skills-list" id="skillsContainer">
+            <!-- Đổ dữ liệu từ API /api/v1/skills -->
+            <div class="empty-placeholder">Đang tải danh sách Skills...</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="templateSelect">Template dựng:</label>
+          <select id="templateSelect" class="form-control"><option value="">Tự động theo Skill</option></select>
+        </div>
+
+        <!-- Ngôn ngữ xuất lời bình -->
+        <div class="form-group">
+          <label class="form-label" for="languageSelect">Ngôn ngữ kịch bản:</label>
+          <select id="languageSelect" class="form-control" onchange="handleLanguageChange(this.value)">
+            <option value="vi">🇻🇳 Tiếng Việt (Tự nhiên, sắc bén)</option>
+            <option value="en" selected>🇺🇸 English (Spoken cadence - TTS tối ưu)</option>
+          </select>
+        </div>
+
+        <!-- Cấu hình Lồng tiếng AI (Voiceover TTS) -->
+        <div class="tts-config-box">
+          <div class="tts-header">
+            <div class="tts-header-title">
+              <span>🔊</span>
+              <label class="form-label" style="margin-bottom: 0; cursor: pointer;" for="ttsToggle">Lồng tiếng AI (Voiceover TTS):</label>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="ttsToggle" checked onchange="toggleTTSConfig(this.checked)" />
+              <span class="slider round"></span>
+            </label>
+          </div>
+          <div id="ttsOptionsContainer" class="tts-options">
+            <div class="form-group" style="margin-bottom: 8px;">
+              <label class="form-label" for="ttsVoiceSelect">Chọn Giọng đọc AI:</label>
+              <select id="ttsVoiceSelect" class="form-control">
+                <!-- Tự động load từ /api/v1/tts/voices -->
+                <option value="am_adam" selected>🌾 Adam (US Male - Grounded Farm & Crafts)</option>
+                <option value="bm_george">🎬 George (UK Male - BBC Documentary)</option>
+                <option value="af_bella">🌿 Bella (US Female - Warm & Expressive)</option>
+                <option value="am_michael">🎙️ Michael (US Male - Clear Explainer)</option>
+                <option value="bf_emma">📖 Emma (UK Female - Nature & Story)</option>
+                <option value="en-US-ChristopherNeural">📻 Christopher (US Male - Deep Baritone)</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <div class="tts-speed-row">
+                <label class="form-label" for="ttsSpeedRange" style="margin-bottom: 0;">Tốc độ đọc: <span id="ttsSpeedVal" style="color: var(--accent-cyan); font-weight: 700;">1.0x</span></label>
+                <input type="range" id="ttsSpeedRange" min="0.8" max="1.3" step="0.05" value="1.0" oninput="document.getElementById('ttsSpeedVal').innerText = this.value + 'x'" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Nút bấm phân tích -->
+        <button type="button" class="btn-primary" id="btnProcess" onclick="submitVideoProcess()">
+          <span>⚡</span>
+          <span id="btnProcessText">Phân tích & Viết Lời bình</span>
+        </button>
+
+      </div>
+    </section>
+
+    <!-- CỘT 2: THỊ GIÁC & ÂM THANH (VISUAL TRUTH INSPECTOR) -->
+    <section class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>👁️</span>
+          <span>Thị giác & Âm thanh (Truth First)</span>
+        </div>
+        <span class="brand-badge" id="tokenSavingsBadge">Tiết kiệm 95% Token</span>
+      </div>
+      <div class="panel-body">
+        
+        <!-- Contact Sheet 3x3 -->
+        <div class="form-label">LƯỚI ẢNH 3x3 ĐIỆN ẢNH (9 KHUNG HÌNH IN TIMESTAMP):</div>
+        <div class="contact-sheet-container" id="contactSheetBox">
+          <div class="empty-placeholder" id="contactSheetPlaceholder">
+            Chưa có video. Nhập link hoặc tải video để tạo ảnh lưới 3x3 (chỉ tốn ~1.000 tokens).
+          </div>
+          <img id="contactSheetImg" class="contact-sheet-img" style="display: none;" alt="Contact Sheet 3x3" onclick="openContactSheetModal()" />
+        </div>
+
+        <!-- Audio Hint -->
+        <div class="audio-hint-box" id="audioHintBox">
+          <div class="audio-hint-header">
+            <span class="form-label" style="margin-bottom: 0;">🎙️ ÂM THANH GỐC (WHISPER VAD):</span>
+            <span class="audio-badge badge-none" id="audioStatusBadge">CHỜ PHÂN TÍCH</span>
+          </div>
+          <div class="audio-snippet" id="audioSnippetText">"Chưa có dữ liệu âm thanh"</div>
+          <div class="audio-guidance" id="audioGuidanceText">Hệ thống sẽ tự nhận diện câu thoại bị cắt cụt từ clip dài và ưu tiên hình ảnh.</div>
+        </div>
+
+        <!-- Visual Action Timeline -->
+        <div class="form-label">NHẬT KÝ HÀNH ĐỘNG THỰC TẾ (TIMELINE):</div>
+        <div class="timeline-list" id="timelineList">
+          <div class="empty-placeholder">Diễn biến theo từng giây sẽ hiển thị tại đây sau khi AI quan sát ảnh lưới.</div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- CỘT 3: STUDIO BIÊN TẬP LỜI BÌNH & XUẤT CAPCUT -->
+    <section class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>🎙️</span>
+          <span>Studio Biên tập Lời bình CapCut</span>
+        </div>
+        <span class="brand-badge" id="activeSkillBadge">Chưa chọn</span>
+      </div>
+      <div class="panel-body" style="display: flex; flex-direction: column;">
+        
+        <!-- Meta Ribbon -->
+        <div class="meta-ribbon" id="metaRibbon">
+          <div class="meta-item">Thời lượng: <span class="meta-val" id="metaDuration">0s</span></div>
+          <div class="meta-item">Số từ: <span class="meta-val" id="metaTotalWords">0</span></div>
+          <div class="meta-item">
+            Tốc độ: 
+            <span class="wpm-badge wpm-good" id="metaWpm">0 WPM</span>
+          </div>
+        </div>
+
+        <!-- Segments List (4 Beats) -->
+        <div class="segments-list" id="segmentsList">
+          <div class="empty-placeholder">
+            Kịch bản lời bình đồng bộ với video sẽ xuất hiện tại đây. Bạn có thể chỉnh sửa trực tiếp, nghe thử SFX và xuất ra CapCut.
+          </div>
+        </div>
+
+        <!-- Khung Nghe Thử Voiceover Audio Player -->
+        <div class="voiceover-player-box" id="voiceoverPlayerBox" style="display: none;">
+          <div class="voiceover-player-header">
+            <div class="voiceover-player-title">
+              <span>🎧</span>
+              <span>BẢN THU VOICEOVER KHỚP NHỊP TIMELINE:</span>
+            </div>
+            <span class="voice-badge" id="voiceNameBadge">am_adam (Kokoro-82M)</span>
+          </div>
+          <audio id="voiceoverAudioPlayer" controls style="width: 100%; margin-top: 8px; border-radius: 8px; outline: none;"></audio>
+        </div>
+
+        <!-- Bottom Actions Toolbar -->
+        <div class="studio-actions">
+          <button type="button" class="btn-secondary btn-bundle" onclick="downloadZipBundle()" id="btnDownloadBundle">
+            <span>📦</span>
+            <span>Tải Trọn Gói Video & Tài Nguyên (.ZIP)</span>
+          </button>
+          <button type="button" class="btn-secondary btn-highlight" onclick="handleQuickRewrite()" id="btnRewrite">
+            <span>🔄</span>
+            <span>Viết lại với Skill khác (1s)</span>
+          </button>
+          <button type="button" class="btn-secondary btn-audio-regen" onclick="regenerateTTSVoiceover()" id="btnRegenTTS">
+            <span>🔊</span>
+            <span id="btnRegenTTSText">Tạo lại Giọng Đọc</span>
+          </button>
+          <button type="button" class="btn-secondary" onclick="downloadCapCutJson()" id="btnDownloadJson">
+            <span>📥</span>
+            <span>Tải CapCut JSON v3</span>
+          </button>
+          <button type="button" class="btn-secondary" onclick="downloadVoiceoverAudio()" id="btnDownloadAudio">
+            <span>🎵</span>
+            <span>Tải Voiceover (.WAV)</span>
+          </button>
+          <button type="button" class="btn-secondary" onclick="downloadContactSheet()" id="btnDownloadCS">
+            <span>🖼️</span>
+            <span>Tải Contact Sheet 3x3</span>
+          </button>
+          <button type="button" class="btn-secondary" onclick="downloadThumbnail()" id="btnDownloadThumb">
+            <span>📸</span>
+            <span>Tải Thumbnail Bìa</span>
+          </button>
+          <button type="button" class="btn-secondary" onclick="downloadVideoSource()" id="btnDownloadVideo">
+            <span>🎬</span>
+            <span>Tải Video Gốc (.MP4)</span>
+          </button>
+          <button type="button" class="btn-secondary" onclick="copyAllVoiceovers()" id="btnCopyAll">
+            <span>📋</span>
+            <span>Copy Lời bình</span>
+          </button>
+          <button type="button" class="btn-secondary" onclick="downloadSrt()" id="btnDownloadSrt">
+            <span>📄</span>
+            <span>Tải Subtitles Gốc (.SRT)</span>
+          </button>
+          <button type="button" class="btn-secondary" onclick="downloadSrtVi()" id="btnDownloadSrtVi">
+            <span>🇻🇳</span>
+            <span>Tải Subtitles Tiếng Việt (.SRT)</span>
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- AUDIO ELEMENT CHO SFX PREVIEW -->
+  <audio id="sfxAudioPlayer" preload="auto" style="display: none;"></audio>
+
+  <!-- TOAST CONTAINER -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
