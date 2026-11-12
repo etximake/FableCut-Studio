@@ -1,0 +1,95 @@
+{
+  "registry_version": "1.0.0",
+  "date": "2026-11-10",
+  "how_to_choose": "Read this file first. Pick ONE template_id per video. If two fit, use the decision tree below in order.",
+  "decision_tree": [
+    "1. Clear transformation (before/after)? -> before-after",
+    "2. Severe problem / animal limping / machine breakdown? -> hazard-rescue",
+    "3. Surprising fact/number/price in hook? -> shock-hook",
+    "4. Explains how something works in steps? -> how-it-works",
+    "5. Process itself is satisfying to watch? -> satisfying",
+    "6. About a person / job / story? -> story",
+    "7. None fits clearly? -> how-it-works (default) and report why in the agent log."
+  ],
+  "templates": [
+    {
+      "template_id": "hazard-rescue",
+      "name_en": "Hazard & Rescue",
+      "name_vi": "Cứu hộ móng & Xử lý sự cố",
+      "file": "templates/hazard-rescue.json",
+      "purpose": "High retention problem-solving. Emergency -> Diagnosis -> Treatment -> Relief.",
+      "best_for": [
+        "farrier / hoof care",
+        "large animal veterinary",
+        "farm machinery breakdown / emergency fix"
+      ]
+    },
+    {
+      "template_id": "shock-hook",
+      "name_en": "Shock Hook",
+      "name_vi": "Hook gây sốc / tò mò",
+      "file": "templates/shock-hook.json",
+      "purpose": "Open with a surprising number or question in the first 3 seconds, then prove it fast.",
+      "best_for": [
+        "farm machinery that pays",
+        "how factories make things",
+        "trucking & logistics"
+      ]
+    },
+    {
+      "template_id": "how-it-works",
+      "name_en": "How It Works",
+      "name_vi": "Giải thích cách máy hoạt động",
+      "file": "templates/how-it-works.json",
+      "purpose": "Explain a mechanism in clear numbered steps. Clarity beats flash.",
+      "best_for": [
+        "farm machinery",
+        "construction machines",
+        "one home trade at a time",
+        "how factories make things"
+      ]
+    },
+    {
+      "template_id": "satisfying",
+      "name_en": "Satisfying",
+      "name_vi": "Máy làm việc / thỏa mãn",
+      "file": "templates/satisfying.json",
+      "purpose": "Let the work speak. Minimal text, long continuous shots, one slow-mo climax.",
+      "best_for": [
+        "farrier / hoof care",
+        "construction machines",
+        "farm machinery"
+      ]
+    },
+    {
+      "template_id": "before-after",
+      "name_en": "Before / After",
+      "name_vi": "Trước / Sau — so sánh",
+      "file": "templates/before-after.json",
+      "purpose": "Show a transformation. Split screen, old vs new, verdict at the end.",
+      "best_for": [
+        "one home trade at a time",
+        "farm machinery upgrade",
+        "trucking & logistics"
+      ]
+    },
+    {
+      "template_id": "story",
+      "name_en": "Story",
+      "name_vi": "Kể chuyện nghề",
+      "file": "templates/story.json",
+      "purpose": "A person, a problem, a turn, a payoff. Slowest pace of the 5 templates.",
+      "best_for": [
+        "farrier / hoof care",
+        "one home trade at a time",
+        "trucking & logistics"
+      ]
+    }
+  ],
+  "rules": [
+    "Never invent a template_id, text_anim, transition or filter. Only values listed in the chosen template file.",
+    "Each template changes structure (beat order/length), not just colours. Do not force all videos into HOOK-BUILD-CLIMAX-PAYOFF.",
+    "One video = one template_id. Do not mix two templates in one video.",
+    "Per-video override lives in that video's JSON only. Permanent change edits the template file + bumps version + test-renders 1 clip."
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "plugins": [
+    "@vheins/antigravity-9router@latest"
+  ],
+  "provider": {
+    "9router": {
+      "options": {
+        "baseURL": "http://localhost:20128/v1",
+        "apiKey": "{env:ROUTER_API_KEY}"
+      }
+    }
+  },
+  "mcp": {
+    "fablecut": {
+      "type": "local",
+      "command": [
+        "node",
+        "D:/HOANG HA/Deverlopper Software/FableCut-Studio/FableCut/mcp-server.js"
+      ],
+      "environment": {
+        "FABLECUT_DATA_DIR": "D:/HOANG HA/Deverlopper Software/FableCut-Studio/fablecut-data"
+      }
+    }
+  }
+}

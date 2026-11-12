@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../fablecut-data"
+		},
+		{
+			"path": "../FableCut"
+		},
+		{
+			"path": "../youtube-analyst-niches-forest"
+		}
+	],
+	"settings": {}
+}

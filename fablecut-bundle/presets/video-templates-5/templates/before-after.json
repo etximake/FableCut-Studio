@@ -1,0 +1,184 @@
+{
+  "template_id": "before-after",
+  "version": "1.0.0",
+  "name_en": "Before / After",
+  "name_vi": "Trước / Sau — so sánh",
+  "purpose": "Show a transformation. Split screen, old vs new, verdict at the end.",
+  "use_when": [
+    "Video shows a clear transformation",
+    "Old vs new, dirty vs clean, broken vs fixed, manual vs machine"
+  ],
+  "avoid_when": [
+    "No visible before/after difference",
+    "Explaining a mechanism is the point",
+    "Footage is a single continuous process"
+  ],
+  "best_for_niches": [
+    "one home trade at a time",
+    "farm machinery upgrade",
+    "trucking & logistics"
+  ],
+  "canvas": {
+    "aspect": "9:16",
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "note": "Labels BEFORE / AFTER must stay on screen during their beat."
+  },
+  "structure": {
+    "beats": [
+      {
+        "beat": "BEFORE",
+        "share": "0-7s",
+        "target_seconds": [
+          0,
+          7
+        ],
+        "note": "Left side only, label BEFORE, desaturated."
+      },
+      {
+        "beat": "TRANSITION",
+        "share": "7-9s",
+        "target_seconds": [
+          7,
+          9
+        ],
+        "note": "Wipe/glitch, 2 seconds max."
+      },
+      {
+        "beat": "AFTER",
+        "share": "9-24s",
+        "target_seconds": [
+          9,
+          24
+        ],
+        "note": "Right side / full screen, label AFTER, vivid."
+      },
+      {
+        "beat": "VERDICT",
+        "share": "24-31s",
+        "target_seconds": [
+          24,
+          31
+        ],
+        "note": "One line: what changed and why it matters."
+      }
+    ],
+    "target_total_seconds": [
+      30,
+      40
+    ]
+  },
+  "text_defaults": {
+    "font": "Inter ExtraBold",
+    "font_size": 80,
+    "style": "bold-contrast",
+    "bg_color": "#000000",
+    "bg_opacity": 0.5,
+    "stroke_width": 5,
+    "position": "CENTER",
+    "uppercase": true
+  },
+  "captions": {
+    "mode": "pop",
+    "word_rate": 0.15,
+    "max_words_per_beat": 4
+  },
+  "layout": {
+    "hook": "whoosh_fast",
+    "body": "none",
+    "payoff": "bell_ding",
+    "music_level": "low"
+  },
+  "sfx_defaults": {
+    "BEFORE": {
+      "text_anim": "clip-reveal",
+      "transition_in": "fade",
+      "filter": "vintage",
+      "motion": {},
+      "svg_overlay": null
+    },
+    "TRANSITION": {
+      "text_anim": "none",
+      "transition_in": "glitch",
+      "filter": "none",
+      "motion": {},
+      "svg_overlay": null
+    },
+    "AFTER": {
+      "text_anim": "word-pop",
+      "transition_in": "wipe",
+      "filter": "teal-orange",
+      "motion": {
+        "zoom": 1.03
+      },
+      "svg_overlay": null
+    },
+    "VERDICT": {
+      "text_anim": "zoom-in",
+      "transition_in": "fade",
+      "filter": "cinematic",
+      "motion": {},
+      "svg_overlay": "underline-swoosh.svg"
+    }
+  },
+  "per_beat_style": {
+    "text_position": "CENTER",
+    "lower_third": false,
+    "split_screen": true,
+    "split_labels": {
+      "left": "BEFORE",
+      "right": "AFTER"
+    },
+    "step_badge": false
+  },
+  "allowed_effects_only": {
+    "text_anim": [
+      "word-pop",
+      "typewriter",
+      "karaoke",
+      "word-slide",
+      "letter-pop",
+      "wave",
+      "bounce",
+      "shake",
+      "clip-reveal",
+      "zoom-in",
+      "font-cut",
+      "rise-mask"
+    ],
+    "transitions": [
+      "fade",
+      "slide",
+      "wipe",
+      "zoom",
+      "iris",
+      "spin",
+      "blur",
+      "whip-pan",
+      "glitch",
+      "pop"
+    ],
+    "filters": [
+      "cinematic",
+      "teal-orange",
+      "noir",
+      "vintage",
+      "cyberpunk",
+      "sunset",
+      "midnight",
+      "none"
+    ],
+    "note": "Agent may ONLY choose values from these lists. Never invent a new effect, transition, filter or text_anim name."
+  },
+  "rules_for_agent": [
+    "Pick template_id from templates/index.json only. Never invent a template_id.",
+    "Merge content layer (segments/voiceover/text_overlay/sfx_cue from Stage 1-2) with this style layer. Do not rewrite voiceover to fit the template.",
+    "Per-video override: change style fields inside that video's JSON only. Do NOT edit the template file.",
+    "Permanent change: edit the template file, bump version (1.0.0 -> 1.1.0), keep old videos unchanged, test-render 1 clip before using it for a batch.",
+    "Validate JSON against the schema before every fablecut_patch_project call. Invalid JSON: stop and report, do not patch.",
+    "Keep time_range contiguous: next start == previous end, no gaps, total 30-60s for a Short.",
+    "Text overlay: max 4 words per beat, UPPER CASE for hook text, keep text inside 9:16 safe area (top 10% and bottom 15% reserved for UI).",
+    "Use fablecut_patch_project for edits, not a full project.json rewrite when only part changes."
+  ]
+}

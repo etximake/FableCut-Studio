@@ -1,0 +1,183 @@
+{
+  "template_id": "satisfying",
+  "version": "1.0.0",
+  "name_en": "Satisfying",
+  "name_vi": "Máy làm việc / thỏa mãn",
+  "purpose": "Let the work speak. Minimal text, long continuous shots, one slow-mo climax.",
+  "use_when": [
+    "The process itself is visually satisfying",
+    "Farrier / hoof care, digging, cutting, polishing, spraying",
+    "Sound of the machine is part of the appeal"
+  ],
+  "avoid_when": [
+    "Video needs a lot of explanation",
+    "The footage is static or low-detail",
+    "A story or comparison is the point"
+  ],
+  "best_for_niches": [
+    "farrier / hoof care",
+    "construction machines",
+    "farm machinery"
+  ],
+  "canvas": {
+    "aspect": "9:16",
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "note": "If text distracts from the work, remove it. Text is optional here."
+  },
+  "structure": {
+    "beats": [
+      {
+        "beat": "SETUP",
+        "share": "0-3s",
+        "target_seconds": [
+          0,
+          3
+        ],
+        "note": "2-3 words only, then get out of the way."
+      },
+      {
+        "beat": "WORK",
+        "share": "3-24s",
+        "target_seconds": [
+          3,
+          24
+        ],
+        "note": "Longest beat. One continuous process, minimal cuts."
+      },
+      {
+        "beat": "CLIMAX_SLOWMO",
+        "share": "24-28s",
+        "target_seconds": [
+          24,
+          28
+        ],
+        "note": "Speed ramp to 0.5x on the best moment."
+      },
+      {
+        "beat": "END",
+        "share": "28-31s",
+        "target_seconds": [
+          28,
+          31
+        ],
+        "note": "Clean finish, no new text."
+      }
+    ],
+    "target_total_seconds": [
+      30,
+      40
+    ]
+  },
+  "text_defaults": {
+    "font": "Inter ExtraBold",
+    "font_size": 88,
+    "style": "neon-glow",
+    "bg_color": "#000000",
+    "bg_opacity": 0.0,
+    "stroke_width": 4,
+    "position": "CENTER",
+    "uppercase": true
+  },
+  "captions": {
+    "mode": "karaoke",
+    "word_rate": 0.25,
+    "max_words_per_beat": 3
+  },
+  "layout": {
+    "hook": "none",
+    "body": "machine_sound_dominant",
+    "payoff": "none",
+    "music_level": "very_low"
+  },
+  "sfx_defaults": {
+    "SETUP": {
+      "text_anim": "word-pop",
+      "transition_in": "fade",
+      "filter": "sunset",
+      "motion": {},
+      "svg_overlay": null
+    },
+    "WORK": {
+      "text_anim": "karaoke",
+      "transition_in": "fade",
+      "filter": "sunset",
+      "motion": {
+        "speed_ramp": 1.0
+      },
+      "svg_overlay": null
+    },
+    "CLIMAX_SLOWMO": {
+      "text_anim": "zoom-in",
+      "transition_in": "fade",
+      "filter": "sunset",
+      "motion": {
+        "speed_ramp": 0.5
+      },
+      "svg_overlay": null
+    },
+    "END": {
+      "text_anim": "fade",
+      "transition_in": "fade",
+      "filter": "sunset",
+      "motion": {},
+      "svg_overlay": null
+    }
+  },
+  "per_beat_style": {
+    "text_position": "CENTER",
+    "lower_third": false,
+    "split_screen": false,
+    "step_badge": false
+  },
+  "allowed_effects_only": {
+    "text_anim": [
+      "word-pop",
+      "typewriter",
+      "karaoke",
+      "word-slide",
+      "letter-pop",
+      "wave",
+      "bounce",
+      "shake",
+      "clip-reveal",
+      "zoom-in",
+      "font-cut",
+      "rise-mask"
+    ],
+    "transitions": [
+      "fade",
+      "slide",
+      "wipe",
+      "zoom",
+      "iris",
+      "spin",
+      "blur",
+      "whip-pan",
+      "glitch",
+      "pop"
+    ],
+    "filters": [
+      "cinematic",
+      "teal-orange",
+      "noir",
+      "vintage",
+      "cyberpunk",
+      "sunset",
+      "midnight",
+      "none"
+    ],
+    "note": "Agent may ONLY choose values from these lists. Never invent a new effect, transition, filter or text_anim name."
+  },
+  "rules_for_agent": [
+    "Pick template_id from templates/index.json only. Never invent a template_id.",
+    "Merge content layer (segments/voiceover/text_overlay/sfx_cue from Stage 1-2) with this style layer. Do not rewrite voiceover to fit the template.",
+    "Per-video override: change style fields inside that video's JSON only. Do NOT edit the template file.",
+    "Permanent change: edit the template file, bump version (1.0.0 -> 1.1.0), keep old videos unchanged, test-render 1 clip before using it for a batch.",
+    "Validate JSON against the schema before every fablecut_patch_project call. Invalid JSON: stop and report, do not patch.",
+    "Keep time_range contiguous: next start == previous end, no gaps, total 30-60s for a Short.",
+    "Text overlay: max 4 words per beat, UPPER CASE for hook text, keep text inside 9:16 safe area (top 10% and bottom 15% reserved for UI).",
+    "Use fablecut_patch_project for edits, not a full project.json rewrite when only part changes."
+  ]
+}

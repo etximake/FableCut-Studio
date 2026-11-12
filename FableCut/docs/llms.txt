@@ -1,0 +1,142 @@
+# FableCut
+
+> A Premiere-style video editor that runs in the browser and keeps its entire
+> timeline in one JSON file, so an AI agent can edit video through MCP or a
+> REST API while a human watches the cut change. MIT licensed, zero npm
+> dependencies, runs locally on your own machine.
+
+FableCut is not a cloud service and has no black-box render API. The whole edit lives in `project.json`. An
+agent rewrites that file the way it rewrites code; the open editor reloads in
+about 150 ms. A human and an agent can work the same timeline at once.
+
+## Facts
+
+- License: MIT. Free for personal and commercial use. No account, no telemetry,
+  no paid tier.
+- Requirements: Node.js 18+ and a Chromium-based browser. ffmpeg on PATH is
+  optional but recommended (fast export, upload remuxing, loudness
+  normalization, auto-duck, noise reduction and silence removal).
+- Install: `npx -y fablecut`, then open http://localhost:7777 (projects and
+  media go to ~/FableCut). Or clone the repo and run `node server.js`.
+- MCP: `claude mcp add -s user fablecut -- npx -y fablecut mcp` (any client:
+  command `npx`, args `-y fablecut mcp`).
+- No install: FableCut Studio (https://studio.fablecut.space) runs the same
+  editor in a Chromium browser on a folder on the user's disk; clips are never
+  uploaded; an agent's edit commands and the frames it asks to see pass through a relay. Agents connect by link (Claude Code, claude.ai, ChatGPT or any MCP
+  client). Docs: https://fablecut.space/docs/studio/
+- The server binds 127.0.0.1 only. Media stays in a local folder; nothing is
+  uploaded to a cloud service.
+- Control surfaces: an MCP server (stdio, client-neutral), a REST API, and
+  direct edits to `project.json` with live reload over server-sent events.
+- Editing: multi-track video and audio (up to 16 per kind), per-clip volume,
+  stereo pan, speed ramps, keyframes, transitions, titles with kinetic text
+  animation, SVG library, chroma key, AI background removal.
+- Audio: a mixer with track faders, pan, mute / solo and meters; submix buses;
+  clip gain; effect chains (EQ, filters, compressor, limiter, gate, delay,
+  reverb, distortion, stereo width, pitch shift) with presets and keyframed
+  parameters; loudness normalization (LUFS); auto-duck; crossfades; noise
+  reduction; silence removal (find the pauses in a take and cut them out);
+  beats (a music clip's tempo, beat grid and drop; snap cuts to the beat or
+  re-cut a track so each shot lasts N beats).
+- Highlights: the best moments of long footage (movement, sound, a clear picture)
+  cut into a short edit in a new sequence.
+- Reframe: a 9:16, 1:1 or 4:5 copy of an edit whose shots follow the subject
+  (a virtual camera, written as ordinary position keys).
+- Transcripts: speech to words with times in the browser (Whisper), read on
+  the timeline; text-based editing (select words or find a phrase and cut it).
+- Captions: from the transcript, timed word by word (subtitle, karaoke, word
+  highlight, word pop); SRT and WebVTT export and import.
+- Color: a Color workspace with GPU grading per clip or adjustment layer
+  (lift / gamma / gain / offset wheels, exposure, white balance with a picker,
+  blacks / shadows / midtones / highlights / whites, log-style contrast and
+  pivot, soft rolloff, saturation, luma / RGB curves and hue vs hue / sat /
+  luma and sat vs luma curves, and layers — secondaries limited by an HSL
+  qualifier and / or a keyframable ellipse, rect, polygon, bezier or free-hand
+  mask) and live scopes (waveform, RGB parade,
+  vectorscope, histogram). Agents grade with the `setGrade` patch op and read
+  the result as numbers with `fablecut_scopes`.
+- Masks: cut what any clip shows (video, image, SVG, text, adjustment layer)
+  with rectangle, ellipse, bezier-pen and free-hand shapes, several per clip,
+  combined with add / subtract / intersect / difference, with feather,
+  expansion, invert and opacity, all keyframable. Agents use the `setMask`
+  patch op and measure coverage with `fablecut_scopes`.
+- Motion tracking: follow a point or region (optionally its scale and
+  rotation) through a video clip; masks follow it and other clips pin to it
+  as editable keyframes. Agents use the `fablecut_track` tool.
+- Shapes, nulls and parenting: shape layers of rectangles, ellipses,
+  polygons, stars, lines and bezier paths in nested groups, with fill, stroke,
+  dashes and trim paths (draw-ons), every value keyframable; invisible null
+  objects; parenting chains; an anchor point on every clip. Agents use the
+  `setShape` and `setParent` patch ops.
+- Motion paths, motion blur and text on a path: position keys with bezier
+  handles bend a clip's travel (auto-orient turns it along the way); a
+  shutter-angle motion blur samples sub-frames in preview and export; titles
+  run along lines, arcs, circles and drawn paths with a keyframable offset.
+  Agents use the `setMotionPath` and `setTextPath` patch ops.
+- Media management: the Project bin shows each file's frame rate, codecs,
+  audio channels and size (ffprobe), searches and filters by them, by tag,
+  favorite, collection or usage, and finds every place a file is used.
+  Missing files are flagged offline and relinked (found by name and size) or
+  replaced. Agents use the `updateMedia`, `setCollection`, `removeCollection`,
+  `relinkMedia` and `replaceMedia` patch ops.
+- Proxies: light H.264 copies of heavy footage played while editing; export,
+  scopes and frame grabs always use the originals. Agents use `fablecut_proxy`.
+- Projects: one install keeps many projects (./project.json is the open one); a
+  dashboard opens, creates from canvas presets or saved templates, duplicates,
+  renames, tags, annotates, archives and deletes them. Agents use
+  `fablecut_projects`.
+- Versions: saved copies of a project (by hand, every 10 minutes while it
+  changes, and before an agent edits); compare one with now, restore it (the
+  current state is kept as a version first), mark the final cut; backups carry
+  every version. Agents use `fablecut_versions`.
+- Sequences: several timelines in one project (a 16:9 and a 9:16 cut,
+  cut-downs, alternatives) sharing its media and compositions, each with its
+  own canvas, frame rate, mix and delivery. Agents add, open and edit them with
+  patch ops (`addSequence`, `inSequence`, `openSequence`).
+- Compositions (nested sequences): a timeline of its own, placed as one clip
+  that transforms, masks, grades and blends like a picture while its media
+  plays and exports; nests 4 deep, opens on the timeline, precompose a
+  selection. Agents use the `addComp`, `updateComp`, `inComp` and `precompose`
+  patch ops.
+- Animation presets and templates: 33 named entrances, exits, emphases and
+  loops keyed relative to the clip, and templates (lower thirds, logo
+  animations, social layouts at 9:16, 1:1 and 16:9) with text, colour and logo
+  fields, each placed as its own comp and retimed by its hold point. Saved
+  ones live in library/presets and library/templates. Agents use the
+  `applyPreset`, `addTemplate`, `setTemplate`, `savePreset` and
+  `saveTemplate` patch ops.
+- Track mattes and blending: a clip can be cut by the picture on the track
+  above (alpha, alpha inverted, luma, luma inverted; the matte track stops
+  drawing), and laid over the clips below with 17 blend modes. Agents use the
+  `setMatte` patch op and `props.blend`.
+- Delivery presets: YouTube, YouTube Shorts, Instagram Reels, TikTok, X,
+  LinkedIn, Master, Broadcast (ProRes), Web, Archive (FFV1) and Custom, with
+  resolution / reframing, frame rate, codec (H.264, HEVC, AV1, VP9, ProRes,
+  DNxHR, XDCAM, FFV1), hardware encoders, CRF / VBR / CBR, keyframe interval,
+  pixel format, color, container, audio, file-name templates and metadata;
+  saved presets, and warnings about upscaling, crops and platform limits.
+- Batch export: one project → many files (master, YouTube, reel, square,
+  preview), one render per frame rate and range (up to 8 outputs each), saved with the project; an export queue with
+  progress, stop, retry and open. Agents: `fablecut_export {outputs}`.
+- Delivery checks: loudness normalization (two-pass loudnorm, true-peak
+  ceiling) and a report on every exported file — size, frame rate, frames,
+  codecs, length, loudness, true peak and file size against what was asked.
+- Export: fast ffmpeg export via delivery presets or encoding profiles, WebCodecs hardware export
+  (browser encodes H.264, server muxes), and a realtime MediaRecorder fallback.
+  Agents can start an export themselves (`fablecut_export`), in the open editor
+  or a headless browser.
+- Look at the footage: agents can fetch a JPEG of any frame (`GET /api/frame`),
+  an N-up contact sheet across a clip, or the composed timeline as the
+  compositor renders it — or text-only measurements of the same for models
+  without vision (`fablecut_frame`, `text:true`).
+- Also installable as a Claude Code plugin, which registers the MCP server and
+  adds `edit-video`, `remake-reel` and `motion-graphics` skills.
+
+## Links
+
+- Site: https://fablecut.space/
+- Repository: https://github.com/ronak-create/FableCut
+- Docs (the agent manual as web pages): https://fablecut.space/docs/
+- Agent manual as Markdown (full schema, semantics, recipes): https://raw.githubusercontent.com/ronak-create/FableCut/main/CLAUDE.md
+- README: https://github.com/ronak-create/FableCut/blob/main/README.md
+- Changelog: https://github.com/ronak-create/FableCut/blob/main/CHANGELOG.md

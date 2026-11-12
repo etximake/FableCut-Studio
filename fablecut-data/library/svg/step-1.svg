@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="280" height="96" viewBox="0 0 280 96">
+  <!-- FableCut animated SVG · one-shot (~0.8s) · numbered step pill STEP 1 -->
+  <style>
+    .pill { transform-box: fill-box; transform-origin: center;
+            animation: pop 0.45s cubic-bezier(.34,1.56,.64,1) both; }
+    .ring { fill: none; stroke: #22d3ee; stroke-width: 4; stroke-linecap: round;
+            stroke-dasharray: 170; stroke-dashoffset: 170;
+            animation: draw 0.6s cubic-bezier(.3,.8,.3,1) both; }
+    .rule { stroke-dasharray: 140; stroke-dashoffset: 140;
+            animation: draw 0.55s cubic-bezier(.3,.8,.3,1) both; }
+    @keyframes pop  { 0% { transform: scale(0.75); opacity: 0.4; } 100% { transform: scale(1); opacity: 1; } }
+    @keyframes draw { to { stroke-dashoffset: 0; } }
+  </style>
+  <g class="pill" style="--d:0s">
+    <rect x="8" y="8" width="264" height="80" rx="40" fill="#0f172a" fill-opacity="0.9" stroke="#22d3ee" stroke-width="3"/>
+    <circle cx="52" cy="48" r="24" fill="#22d3ee"/>
+    <circle class="ring" style="--d:0.1s" cx="52" cy="48" r="27"/>
+    <text x="52" y="50" text-anchor="middle" dominant-baseline="central"
+          font-family="Inter, Arial, sans-serif" font-weight="800" font-size="28" fill="#0f172a">1</text>
+    <text x="94" y="47" text-anchor="start" dominant-baseline="central"
+          font-family="Inter, Arial, sans-serif" font-weight="800" font-size="30" letter-spacing="2" fill="#ffffff">STEP 01</text>
+    <line class="rule" style="--d:0.2s" x1="94" y1="68" x2="234" y2="68" stroke="#22d3ee" stroke-width="4" stroke-linecap="round"/>
+  </g>
+</svg>

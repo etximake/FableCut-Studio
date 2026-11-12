@@ -1,0 +1,186 @@
+{
+  "template_id": "shock-hook",
+  "version": "1.1.0",
+  "name_en": "Shock Hook",
+  "name_vi": "Hook gây sốc / tò mò",
+  "purpose": "Open with a surprising number or question in the first 3 seconds, then prove it fast.",
+  "use_when": [
+    "Video has a surprising fact, number, price or claim",
+    "Hook question can be answered in one sentence",
+    "Farm / factory / machine videos with an unexpected result"
+  ],
+  "avoid_when": [
+    "Explaining a multi-step mechanism",
+    "Slow satisfying process with no surprising claim",
+    "A personal story with no hook fact"
+  ],
+  "best_for_niches": [
+    "farm machinery that pays",
+    "how factories make things",
+    "trucking & logistics"
+  ],
+  "canvas": {
+    "aspect": "9:16",
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "note": "Hook text must be readable in 1 second on mute."
+  },
+  "structure": {
+    "beats": [
+      {
+        "beat": "HOOK",
+        "share": "0-3s",
+        "target_seconds": [
+          0,
+          3
+        ],
+        "note": "One question or number only. Visual first, voice second."
+      },
+      {
+        "beat": "REVEAL",
+        "share": "3-15s",
+        "target_seconds": [
+          3,
+          15
+        ],
+        "note": "Show the answer visually, short sentences."
+      },
+      {
+        "beat": "PROOF",
+        "share": "15-26s",
+        "target_seconds": [
+          15,
+          26
+        ],
+        "note": "One close-up + one wide shot proving the claim."
+      },
+      {
+        "beat": "PAYOFF",
+        "share": "26-31s",
+        "target_seconds": [
+          26,
+          31
+        ],
+        "note": "One-line takeaway, no new information."
+      }
+    ],
+    "target_total_seconds": [
+      30,
+      40
+    ]
+  },
+  "text_defaults": {
+    "font": "Anton",
+    "font_size": 96,
+    "style": "highlight-yellow",
+    "bg_color": "#000000",
+    "bg_opacity": 0.45,
+    "stroke_width": 6,
+    "position": "CENTER",
+    "uppercase": true
+  },
+  "captions": {
+    "mode": "word-pop",
+    "word_rate": 0.15,
+    "max_words_per_beat": 4
+  },
+  "layout": {
+    "hook": "cinematic_sub_boom",
+    "body": "whoosh_fast",
+    "payoff": "bell_ding",
+    "music_level": "low"
+  },
+  "sfx_defaults": {
+    "HOOK": {
+      "text_anim": "word-pop",
+      "transition_in": "whip-pan",
+      "filter": "cinematic",
+      "motion": {
+        "shake": 4,
+        "zoom": 1.05
+      },
+      "svg_overlay": null
+    },
+    "REVEAL": {
+      "text_anim": "word-pop",
+      "transition_in": "slide",
+      "filter": "cinematic",
+      "motion": {
+        "zoom": 1.03
+      },
+      "svg_overlay": null
+    },
+    "PROOF": {
+      "text_anim": "word-slide",
+      "transition_in": "zoom",
+      "filter": "cinematic",
+      "motion": {
+        "shake": 2
+      },
+      "svg_overlay": null
+    },
+    "PAYOFF": {
+      "text_anim": "zoom-in",
+      "transition_in": "fade",
+      "filter": "cinematic",
+      "motion": {},
+      "svg_overlay": "underline-swoosh.svg"
+    }
+  },
+  "per_beat_style": {
+    "text_position": "CENTER",
+    "lower_third": false,
+    "split_screen": false,
+    "step_badge": false
+  },
+  "allowed_effects_only": {
+    "text_anim": [
+      "word-pop",
+      "typewriter",
+      "karaoke",
+      "word-slide",
+      "letter-pop",
+      "wave",
+      "bounce",
+      "shake",
+      "clip-reveal",
+      "zoom-in",
+      "font-cut",
+      "rise-mask"
+    ],
+    "transitions": [
+      "fade",
+      "slide",
+      "wipe",
+      "zoom",
+      "iris",
+      "spin",
+      "blur",
+      "whip-pan",
+      "glitch",
+      "pop"
+    ],
+    "filters": [
+      "cinematic",
+      "teal-orange",
+      "noir",
+      "vintage",
+      "cyberpunk",
+      "sunset",
+      "midnight",
+      "none"
+    ],
+    "note": "Agent may ONLY choose values from these lists. Never invent a new effect, transition, filter or text_anim name."
+  },
+  "rules_for_agent": [
+    "Pick template_id from templates/index.json only. Never invent a template_id.",
+    "Merge content layer (segments/voiceover/text_overlay/sfx_cue from Stage 1-2) with this style layer. Do not rewrite voiceover to fit the template.",
+    "Per-video override: change style fields inside that video's JSON only. Do NOT edit the template file.",
+    "Permanent change: edit the template file, bump version (1.1.0 -> 1.2.0), keep old videos unchanged, test-render 1 clip before using it for a batch.",
+    "Validate JSON against the schema before every fablecut_patch_project call. Invalid JSON: stop and report, do not patch.",
+    "Keep time_range contiguous: next start == previous end, no gaps, total 30-60s for a Short.",
+    "Text overlay: max 4 words per beat, UPPER CASE for hook text, keep text inside 9:16 safe area (top 10% and bottom 15% reserved for UI).",
+    "Use fablecut_patch_project for edits, not a full project.json rewrite when only part changes."
+  ]
+}

@@ -1,0 +1,191 @@
+{
+  "template_id": "how-it-works",
+  "version": "1.0.0",
+  "name_en": "How It Works",
+  "name_vi": "Giải thích cách máy hoạt động",
+  "purpose": "Explain a mechanism in clear numbered steps. Clarity beats flash.",
+  "use_when": [
+    "Video explains how a machine / tool / process works",
+    "There are 2-4 distinct steps",
+    "Viewer needs to understand, not just watch"
+  ],
+  "avoid_when": [
+    "Pure satisfying footage with no explanation needed",
+    "A story with no steps",
+    "Before/after transformation is the point"
+  ],
+  "best_for_niches": [
+    "farm machinery",
+    "construction machines",
+    "one home trade at a time",
+    "how factories make things"
+  ],
+  "canvas": {
+    "aspect": "9:16",
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "note": "Text stays in lower third so the machine stays visible."
+  },
+  "structure": {
+    "beats": [
+      {
+        "beat": "QUESTION",
+        "share": "0-4s",
+        "target_seconds": [
+          0,
+          4
+        ],
+        "note": "State the problem in one line."
+      },
+      {
+        "beat": "STEP_1",
+        "share": "4-13s",
+        "target_seconds": [
+          4,
+          13
+        ],
+        "note": "Step badge 1, one mechanism per step."
+      },
+      {
+        "beat": "STEP_2",
+        "share": "13-22s",
+        "target_seconds": [
+          13,
+          22
+        ],
+        "note": "Step badge 2, close-up of the key part."
+      },
+      {
+        "beat": "STEP_3_RESULT",
+        "share": "22-31s",
+        "target_seconds": [
+          22,
+          31
+        ],
+        "note": "Step badge 3 if needed, then the result."
+      }
+    ],
+    "target_total_seconds": [
+      30,
+      50
+    ]
+  },
+  "text_defaults": {
+    "font": "Inter Bold",
+    "font_size": 64,
+    "style": "clean-white",
+    "bg_color": "#000000",
+    "bg_opacity": 0.35,
+    "stroke_width": 0,
+    "position": "LOWER_THIRD",
+    "uppercase": false
+  },
+  "captions": {
+    "mode": "typewriter",
+    "word_rate": 0.2,
+    "max_words_per_beat": 6
+  },
+  "layout": {
+    "hook": "none",
+    "body": "whoosh_fast",
+    "payoff": "bell_ding",
+    "music_level": "low"
+  },
+  "sfx_defaults": {
+    "QUESTION": {
+      "text_anim": "typewriter",
+      "transition_in": "fade",
+      "filter": "none",
+      "motion": {
+        "zoom": 1.02
+      },
+      "svg_overlay": null
+    },
+    "STEP_1": {
+      "text_anim": "word-slide",
+      "transition_in": "slide",
+      "filter": "none",
+      "motion": {
+        "zoom": 1.05
+      },
+      "svg_overlay": "step-1.svg"
+    },
+    "STEP_2": {
+      "text_anim": "word-slide",
+      "transition_in": "slide",
+      "filter": "none",
+      "motion": {
+        "zoom": 1.05
+      },
+      "svg_overlay": "step-2.svg"
+    },
+    "STEP_3_RESULT": {
+      "text_anim": "clip-reveal",
+      "transition_in": "fade",
+      "filter": "none",
+      "motion": {},
+      "svg_overlay": "step-3.svg"
+    }
+  },
+  "per_beat_style": {
+    "text_position": "LOWER_THIRD",
+    "lower_third": true,
+    "split_screen": false,
+    "step_badge": true,
+    "step_badge_files": [
+      "step-1.svg",
+      "step-2.svg",
+      "step-3.svg"
+    ]
+  },
+  "allowed_effects_only": {
+    "text_anim": [
+      "word-pop",
+      "typewriter",
+      "karaoke",
+      "word-slide",
+      "letter-pop",
+      "wave",
+      "bounce",
+      "shake",
+      "clip-reveal",
+      "zoom-in",
+      "font-cut",
+      "rise-mask"
+    ],
+    "transitions": [
+      "fade",
+      "slide",
+      "wipe",
+      "zoom",
+      "iris",
+      "spin",
+      "blur",
+      "whip-pan",
+      "glitch",
+      "pop"
+    ],
+    "filters": [
+      "cinematic",
+      "teal-orange",
+      "noir",
+      "vintage",
+      "cyberpunk",
+      "sunset",
+      "midnight",
+      "none"
+    ],
+    "note": "Agent may ONLY choose values from these lists. Never invent a new effect, transition, filter or text_anim name."
+  },
+  "rules_for_agent": [
+    "Pick template_id from templates/index.json only. Never invent a template_id.",
+    "Merge content layer (segments/voiceover/text_overlay/sfx_cue from Stage 1-2) with this style layer. Do not rewrite voiceover to fit the template.",
+    "Per-video override: change style fields inside that video's JSON only. Do NOT edit the template file.",
+    "Permanent change: edit the template file, bump version (1.0.0 -> 1.1.0), keep old videos unchanged, test-render 1 clip before using it for a batch.",
+    "Validate JSON against the schema before every fablecut_patch_project call. Invalid JSON: stop and report, do not patch.",
+    "Keep time_range contiguous: next start == previous end, no gaps, total 30-60s for a Short.",
+    "Text overlay: max 4 words per beat, UPPER CASE for hook text, keep text inside 9:16 safe area (top 10% and bottom 15% reserved for UI).",
+    "Use fablecut_patch_project for edits, not a full project.json rewrite when only part changes."
+  ]
+}

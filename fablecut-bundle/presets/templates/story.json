@@ -1,0 +1,185 @@
+{
+  "template_id": "story",
+  "version": "1.1.0",
+  "name_en": "Story",
+  "name_vi": "Kể chuyện nghề",
+  "purpose": "A person, a problem, a turn, a payoff. Slowest pace of the 6 templates.",
+  "use_when": [
+    "Video is about a person / a job / a day at work",
+    "There is a problem and a turning point",
+    "Viewer should feel something, not just learn"
+  ],
+  "avoid_when": [
+    "Pure machine demo with no person",
+    "A fast fact video",
+    "A step-by-step tutorial"
+  ],
+  "best_for_niches": [
+    "farrier / hoof care",
+    "one home trade at a time",
+    "trucking & logistics"
+  ],
+  "canvas": {
+    "aspect": "9:16",
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "note": "Slow push-in, no shake. Let faces and hands stay in frame."
+  },
+  "structure": {
+    "beats": [
+      {
+        "beat": "CHARACTER",
+        "share": "0-6s",
+        "target_seconds": [
+          0,
+          6
+        ],
+        "note": "Who is this person, in one line."
+      },
+      {
+        "beat": "PROBLEM",
+        "share": "6-15s",
+        "target_seconds": [
+          6,
+          15
+        ],
+        "note": "What is hard about this job today."
+      },
+      {
+        "beat": "TURN",
+        "share": "15-24s",
+        "target_seconds": [
+          15,
+          24
+        ],
+        "note": "What changes, what skill solves it."
+      },
+      {
+        "beat": "PAYOFF",
+        "share": "24-31s",
+        "target_seconds": [
+          24,
+          31
+        ],
+        "note": "Result + one human line, no sales pitch."
+      }
+    ],
+    "target_total_seconds": [
+      30,
+      50
+    ]
+  },
+  "text_defaults": {
+    "font": "Playfair Display",
+    "font_size": 72,
+    "style": "handwritten-warm",
+    "bg_color": "#000000",
+    "bg_opacity": 0.25,
+    "stroke_width": 0,
+    "position": "LOWER_THIRD",
+    "uppercase": false
+  },
+  "captions": {
+    "mode": "rise-mask",
+    "word_rate": 0.2,
+    "max_words_per_beat": 6
+  },
+  "layout": {
+    "hook": "none",
+    "body": "none",
+    "payoff": "soft_chime",
+    "music_level": "medium"
+  },
+  "sfx_defaults": {
+    "CHARACTER": {
+      "text_anim": "rise-mask",
+      "transition_in": "fade",
+      "filter": "vintage",
+      "motion": {
+        "zoom": 1.02
+      },
+      "svg_overlay": null
+    },
+    "PROBLEM": {
+      "text_anim": "clip-reveal",
+      "transition_in": "blur",
+      "filter": "vintage",
+      "motion": {
+        "zoom": 1.03
+      },
+      "svg_overlay": null
+    },
+    "TURN": {
+      "text_anim": "word-slide",
+      "transition_in": "fade",
+      "filter": "cinematic",
+      "motion": {
+        "zoom": 1.04
+      },
+      "svg_overlay": null
+    },
+    "PAYOFF": {
+      "text_anim": "rise-mask",
+      "transition_in": "fade",
+      "filter": "cinematic",
+      "motion": {},
+      "svg_overlay": "underline-swoosh.svg"
+    }
+  },
+  "per_beat_style": {
+    "text_position": "LOWER_THIRD",
+    "lower_third": true,
+    "split_screen": false,
+    "step_badge": false
+  },
+  "allowed_effects_only": {
+    "text_anim": [
+      "word-pop",
+      "typewriter",
+      "karaoke",
+      "word-slide",
+      "letter-pop",
+      "wave",
+      "bounce",
+      "shake",
+      "clip-reveal",
+      "zoom-in",
+      "font-cut",
+      "rise-mask"
+    ],
+    "transitions": [
+      "fade",
+      "slide",
+      "wipe",
+      "zoom",
+      "iris",
+      "spin",
+      "blur",
+      "whip-pan",
+      "glitch",
+      "pop"
+    ],
+    "filters": [
+      "cinematic",
+      "teal-orange",
+      "noir",
+      "vintage",
+      "cyberpunk",
+      "sunset",
+      "midnight",
+      "none"
+    ],
+    "note": "Agent may ONLY choose values from these lists. Never invent a new effect, transition, filter or text_anim name."
+  },
+  "rules_for_agent": [
+    "Pick template_id from templates/index.json only. Never invent a template_id.",
+    "Merge content layer (segments/voiceover/text_overlay/sfx_cue from Stage 1-2) with this style layer. Do not rewrite voiceover to fit the template.",
+    "Per-video override: change style fields inside that video's JSON only. Do NOT edit the template file.",
+    "Permanent change: edit the template file, bump version (1.1.0 -> 1.2.0), keep old videos unchanged, test-render 1 clip before using it for a batch.",
+    "Validate JSON against the schema before every fablecut_patch_project call. Invalid JSON: stop and report, do not patch.",
+    "Keep time_range contiguous: next start == previous end, no gaps, total 30-60s for a Short.",
+    "Text overlay: max 4 words per beat, UPPER CASE for hook text, keep text inside 9:16 safe area (top 10% and bottom 15% reserved for UI).",
+    "Use fablecut_patch_project for edits, not a full project.json rewrite when only part changes."
+  ]
+}

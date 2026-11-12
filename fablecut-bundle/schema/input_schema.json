@@ -1,0 +1,267 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FablecutStorySegmentSchema",
+  "type": "object",
+  "required": ["schema_version", "format", "video_metadata", "segments"],
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+    "format": { "type": "string", "minLength": 1 },
+    "template_id": {
+      "type": ["string", "null"],
+      "enum": [
+        "hazard-rescue",
+        "shock-hook",
+        "how-it-works",
+        "satisfying",
+        "before-after",
+        "story",
+        null
+      ]
+    },
+    "template_version": { "type": ["string", "null"] },
+    "note": { "type": ["string", "null"] },
+    "video_metadata": {
+      "type": "object",
+      "required": ["video_id", "duration_seconds"],
+      "properties": {
+        "video_id": { "type": "string", "minLength": 1 },
+        "title": { "type": ["string", "null"] },
+        "duration_seconds": { "type": "number", "minimum": 0 },
+        "skill_applied": { "type": ["string", "null"] },
+        "language": { "type": ["string", "null"] },
+        "total_words": { "type": ["integer", "null"], "minimum": 0 },
+        "average_wpm": { "type": ["number", "null"], "minimum": 0 },
+        "template_id": {
+          "type": ["string", "null"],
+          "enum": [
+            "hazard-rescue",
+            "shock-hook",
+            "how-it-works",
+            "satisfying",
+            "before-after",
+            "story",
+            null
+          ]
+        },
+        "template_version": { "type": ["string", "null"] },
+        "contact_sheet_file": { "type": ["string", "null"] },
+        "thumbnail_file": { "type": ["string", "null"] },
+        "voiceover_audio_file": { "type": ["string", "null"] },
+        "voiceover_voice": { "type": ["string", "null"] }
+      }
+    },
+    "segments": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["beat", "time_range", "voiceover", "text_overlay"],
+        "properties": {
+          "beat": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "EMERGENCY",
+                  "DIAGNOSIS",
+                  "TREATMENT",
+                  "RELIEF",
+                  "HOOK",
+                  "REVEAL",
+                  "PROOF",
+                  "PAYOFF",
+                  "QUESTION",
+                  "STEP_1",
+                  "STEP_2",
+                  "STEP_3_RESULT",
+                  "SETUP",
+                  "WORK",
+                  "CLIMAX_SLOWMO",
+                  "END",
+                  "BEFORE",
+                  "TRANSITION",
+                  "AFTER",
+                  "VERDICT",
+                  "CHARACTER",
+                  "PROBLEM",
+                  "TURN",
+                  "BUILD_UP",
+                  "CLIMAX"
+                ]
+              },
+              {
+                "type": "string",
+                "pattern": "^STEP_[1-9][0-9]*(_[A-Z0-9_]+)?$"
+              }
+            ]
+          },
+          "time_range": {
+            "type": "object",
+            "required": ["start", "end"],
+            "additionalProperties": false,
+            "properties": {
+              "start": { "type": "number", "minimum": 0 },
+              "end": { "type": "number", "exclusiveMinimum": 0 }
+            }
+          },
+          "voiceover": { "type": "string" },
+          "voiceover_vi_translation": { "type": ["string", "null"] },
+          "text_overlay": {
+            "type": "object",
+            "required": ["text", "style"],
+            "properties": {
+              "text": { "type": "string" },
+              "position": {
+                "type": "string",
+                "enum": ["TOP_CENTER", "CENTER", "LOWER_THIRD"]
+              },
+              "style": {
+                "type": "string",
+                "enum": [
+                  "HIGHLIGHT_YELLOW",
+                  "highlight-yellow",
+                  "IMPACT_RED",
+                  "BOLD_RED",
+                  "CLEAN_WHITE",
+                  "clean-white",
+                  "NEON_GLOW",
+                  "neon-glow",
+                  "BOLD_CONTRAST",
+                  "bold-contrast",
+                  "HANDWRITTEN_WARM",
+                  "handwritten-warm",
+                  "CLEAN_CYAN",
+                  "ELEGANT_GOLD"
+                ]
+              }
+            }
+          },
+          "sfx_cue": {
+            "type": ["object", "null"],
+            "properties": {
+              "suggested_sfx": { "type": ["string", "null"] },
+              "start_offset": { "type": "number" },
+              "volume": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          },
+          "visual_hint": { "type": ["string", "null"] },
+          "style": {
+            "type": ["object", "null"],
+            "properties": {
+              "text_anim": {
+                "type": ["string", "null"],
+                "enum": [
+                  "none",
+                  "word-pop",
+                  "typewriter",
+                  "karaoke",
+                  "word-slide",
+                  "highlight",
+                  "letter-pop",
+                  "wave",
+                  "bounce",
+                  "shake",
+                  "clip-reveal",
+                  "zoom-in",
+                  "font-cut",
+                  "rise-mask",
+                  "fade",
+                  null
+                ]
+              },
+              "preset_anim": {
+                "type": ["string", "null"],
+                "enum": [
+                  "none",
+                  "pulse",
+                  "shake",
+                  "wobble",
+                  "bounce",
+                  "flash",
+                  "fade-in",
+                  "pop-in",
+                  "slide-up-in",
+                  "slide-down-in",
+                  "slide-left-in",
+                  "slide-right-in",
+                  "drop-in",
+                  "zoom-in",
+                  "whip-in",
+                  "rise-blur",
+                  "draw-on",
+                  "fade-out",
+                  "pop-out",
+                  "float",
+                  "breathe",
+                  "sway",
+                  "spin",
+                  "wiggle",
+                  null
+                ]
+              },
+              "transition_in": {
+                "type": ["string", "null"],
+                "enum": [
+                  "none",
+                  "fade",
+                  "slide-left",
+                  "slide-right",
+                  "slide-up",
+                  "slide-down",
+                  "slide",
+                  "wipe",
+                  "wipe-right",
+                  "wipe-up",
+                  "wipe-down",
+                  "zoom",
+                  "iris",
+                  "spin",
+                  "blur",
+                  "whip",
+                  "whip-pan",
+                  "glitch",
+                  "pop",
+                  null
+                ]
+              },
+              "filter": {
+                "type": ["string", "null"],
+                "enum": [
+                  "none",
+                  "cinematic",
+                  "teal-orange",
+                  "noir",
+                  "vintage",
+                  "faded",
+                  "warm",
+                  "cold",
+                  "pop",
+                  "dreamy",
+                  "retro",
+                  "bw-soft",
+                  "cyberpunk",
+                  "sunset",
+                  "midnight",
+                  null
+                ]
+              },
+              "speed": { "type": ["number", "null"], "minimum": 0.1, "maximum": 8 },
+              "position": { "type": ["string", "null"], "enum": ["TOP_CENTER", "CENTER", "LOWER_THIRD", null] },
+              "sfx": { "type": ["string", "null"] },
+              "svg_overlay": { "type": ["string", "null"] },
+              "motion": { "type": ["object", "null"] },
+              "split_screen": { "type": ["boolean", "null"] },
+              "font": { "type": ["string", "null"] },
+              "font_size": { "type": ["number", "null"], "minimum": 12, "maximum": 240 },
+              "y": { "type": ["number", "null"] },
+              "x": { "type": ["number", "null"] },
+              "box_w": { "type": ["number", "null"], "minimum": 100, "maximum": 960 },
+              "box_h": { "type": ["number", "null"], "minimum": 60, "maximum": 1400 }
+            },
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}

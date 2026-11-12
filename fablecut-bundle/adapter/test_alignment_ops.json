@@ -1,0 +1,176 @@
+[
+  {
+    "op": "setProject",
+    "set": {
+      "name": "Demonstration and use of high-pressure water spraying equipm",
+      "width": 1080,
+      "height": 1920,
+      "fps": 30
+    }
+  },
+  {
+    "op": "addClip",
+    "clip": {
+      "id": "c_video_v1",
+      "kind": "video",
+      "mediaId": "m_re9jh8n",
+      "track": "V1",
+      "start": 0,
+      "in": 0,
+      "duration": 31.438,
+      "name": "Background Footage",
+      "props": {
+        "fit": "cover",
+        "volume": 0.0
+      }
+    }
+  },
+  {
+    "op": "addClip",
+    "clip": {
+      "id": "c_audio_a1",
+      "kind": "audio",
+      "mediaId": "m_stklyr6",
+      "track": "A1",
+      "start": 0,
+      "in": 0,
+      "duration": 31.438,
+      "name": "Voiceover Audio",
+      "props": {
+        "volume": 1.0
+      }
+    }
+  },
+  {
+    "op": "addClip",
+    "clip": {
+      "id": "c_text_seg_1",
+      "kind": "text",
+      "mediaId": null,
+      "track": "V2",
+      "start": 0.0,
+      "in": 0,
+      "duration": 4.5,
+      "name": "Text Seg 1: QUESTION",
+      "props": {
+        "text": "Watering steep orchard slopes",
+        "font": "Inter Bold",
+        "weight": 700,
+        "fontSize": 64,
+        "color": "#ffffff",
+        "textAnim": "highlight",
+        "wordRate": 0.2,
+        "uppercase": false,
+        "strokeWidth": 0,
+        "strokeColor": "#000000",
+        "textShadow": 10,
+        "bgColor": "#000000",
+        "bgOpacity": 0.45,
+        "boxW": 820,
+        "boxH": 300,
+        "boxFit": true,
+        "vAlign": "middle",
+        "y": 420
+      }
+    }
+  },
+  {
+    "op": "addClip",
+    "clip": {
+      "id": "c_text_seg_2",
+      "kind": "text",
+      "mediaId": null,
+      "track": "V2",
+      "start": 4.5,
+      "in": 0,
+      "duration": 13.0,
+      "name": "Text Seg 2: STEP_1",
+      "props": {
+        "text": "Constriction nozzle boosts pressure",
+        "font": "Inter Bold",
+        "weight": 700,
+        "fontSize": 64,
+        "color": "#ffffff",
+        "textAnim": "word-slide",
+        "wordRate": 0.2,
+        "uppercase": false,
+        "strokeWidth": 0,
+        "strokeColor": "#000000",
+        "textShadow": 10,
+        "bgColor": "#000000",
+        "bgOpacity": 0.45,
+        "boxW": 820,
+        "boxH": 300,
+        "boxFit": true,
+        "vAlign": "middle",
+        "y": 420
+      }
+    }
+  },
+  {
+    "op": "addClip",
+    "clip": {
+      "id": "c_text_seg_3",
+      "kind": "text",
+      "mediaId": null,
+      "track": "V2",
+      "start": 17.5,
+      "in": 0,
+      "duration": 8.5,
+      "name": "Text Seg 3: STEP_2",
+      "props": {
+        "text": "Base pumps drive water uphill",
+        "font": "Inter Bold",
+        "weight": 700,
+        "fontSize": 64,
+        "color": "#ffffff",
+        "textAnim": "word-slide",
+        "wordRate": 0.2,
+        "uppercase": false,
+        "strokeWidth": 0,
+        "strokeColor": "#000000",
+        "textShadow": 10,
+        "bgColor": "#000000",
+        "bgOpacity": 0.45,
+        "boxW": 820,
+        "boxH": 300,
+        "boxFit": true,
+        "vAlign": "middle",
+        "y": 420
+      }
+    }
+  },
+  {
+    "op": "addClip",
+    "clip": {
+      "id": "c_text_seg_4",
+      "kind": "text",
+      "mediaId": null,
+      "track": "V2",
+      "start": 26.0,
+      "in": 0,
+      "duration": 5.438,
+      "name": "Text Seg 4: STEP_3_RESULT",
+      "props": {
+        "text": "Fine mist settles evenly",
+        "font": "Inter Bold",
+        "weight": 700,
+        "fontSize": 64,
+        "color": "#ffffff",
+        "textAnim": "clip-reveal",
+        "wordRate": 0.2,
+        "uppercase": false,
+        "strokeWidth": 0,
+        "strokeColor": "#000000",
+        "textShadow": 10,
+        "bgColor": "#000000",
+        "bgOpacity": 0.45,
+        "boxW": 820,
+        "boxH": 300,
+        "boxFit": true,
+        "vAlign": "middle",
+        "y": 420
+      }
+    }
+  }
+]

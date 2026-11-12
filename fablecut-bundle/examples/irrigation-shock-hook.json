@@ -1,0 +1,100 @@
+{
+  "schema_version": 3,
+  "format": "youtube-story-commentary-capcut",
+  "template_id": "shock-hook",
+  "template_version": "1.1.0",
+  "note": "Example v1.1.0: same irrigation clip (31.44s, 69 words), timings kept from the original JSON so the 6 templates can be compared side by side. For a new video, use the template's own structure proportions in presets/templates/<id>.json.",
+  "video_metadata": {
+    "video_id": "7611044561959324946",
+    "title": "Demonstration and use of high-pressure water spraying equipment to irrigate crops in an orchard on a hillside plantation.",
+    "duration_seconds": 31.438367,
+    "skill_applied": "curiosity-explainer",
+    "language": "en",
+    "total_words": 69,
+    "average_wpm": 131.7,
+    "template_id": "shock-hook",
+    "template_version": "1.1.0"
+  },
+  "segments": [
+    {
+      "beat": "HOOK",
+      "time_range": {
+        "start": 0,
+        "end": 4.5
+      },
+      "voiceover": "How does a single hose defy gravity to water an entire hillside?",
+      "text_overlay": {
+        "text": "DEFYING GRAVITY HILLSIDE",
+        "position": "CENTER",
+        "style": "highlight-yellow"
+      },
+      "sfx_cue": {
+        "suggested_sfx": "cinematic_sub_boom",
+        "start_offset": 0.1,
+        "volume": 0.85
+      },
+      "visual_hint": "Establishing wide shot of water arcing high above the orchard terraces.",
+      "style": {}
+    },
+    {
+      "beat": "REVEAL",
+      "time_range": {
+        "start": 4.5,
+        "end": 17.5
+      },
+      "voiceover": "Standard sprinklers fail on steep slopes. Instead, farmers use high-pressure constriction nozzles that compress thousands of liters, launching a targeted hydraulic jet across tiered tree rows.",
+      "text_overlay": {
+        "text": "HIGH PRESSURE NOZZLE",
+        "position": "CENTER",
+        "style": "highlight-yellow"
+      },
+      "sfx_cue": {
+        "suggested_sfx": "whoosh_fast",
+        "start_offset": 0.1,
+        "volume": 0.75
+      },
+      "visual_hint": "Close-up of worker gripping the heavy nozzle followed by aerial view of the spraying stream.",
+      "style": {}
+    },
+    {
+      "beat": "PROOF",
+      "time_range": {
+        "start": 17.5,
+        "end": 26
+      },
+      "voiceover": "Powered by heavy-duty pumps below, the kinetic force pushes gallons uphill without washing away fragile topsoil.",
+      "text_overlay": {
+        "text": "PURE KINETIC POWER",
+        "position": "CENTER",
+        "style": "highlight-yellow"
+      },
+      "sfx_cue": {
+        "suggested_sfx": "tension_riser_short",
+        "start_offset": 0.2,
+        "volume": 0.8
+      },
+      "visual_hint": "Angle showing pump base sending the jet soaring toward upper slopes.",
+      "style": {}
+    },
+    {
+      "beat": "PAYOFF",
+      "time_range": {
+        "start": 26,
+        "end": 31.438367
+      },
+      "voiceover": "At peak altitude, velocity breaks the jet into micro-droplets, creating artificial rain that absorbs instantly.",
+      "text_overlay": {
+        "text": "ARTIFICIAL RAIN EFFECT",
+        "position": "CENTER",
+        "style": "highlight-yellow"
+      },
+      "sfx_cue": {
+        "suggested_sfx": "bell_ding",
+        "start_offset": 0.1,
+        "volume": 0.7
+      },
+      "visual_hint": "Close-up of mist and water droplets diffusing into the atmosphere against dark background.",
+      "style": {}
+    }
+  ]
+}

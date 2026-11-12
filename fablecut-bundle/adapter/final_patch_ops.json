@@ -1,0 +1,175 @@
+[
+  {
+    "op": "setProject",
+    "set": {
+      "name": "Agricultural irrigation and spraying in an orchard hillside ",
+      "width": 1080,
+      "height": 1920,
+      "fps": 30
+    }
+  },
+  {
+    "op": "addClip",
+    "clip": {
+      "id": "c_video_v1",
+      "kind": "video",
+      "mediaId": "m_re9jh8n",
+      "track": "V1",
+      "start": 0,
+      "in": 0,
+      "duration": 31.438,
+      "name": "Background Stock",
+      "props": {
+        "fit": "cover"
+      }
+    }
+  },
+  {
+    "op": "addClip",
+    "clip": {
+      "id": "c_audio_a1",
+      "kind": "audio",
+      "mediaId": "m_stklyr6",
+      "track": "A1",
+      "start": 0,
+      "in": 0,
+      "duration": 31.438,
+      "name": "Voiceover Audio",
+      "props": {
+        "volume": 1.0
+      }
+    }
+  },
+  {
+    "op": "addClip",
+    "clip": {
+      "id": "c_text_seg_1",
+      "kind": "text",
+      "mediaId": null,
+      "track": "V2",
+      "start": 0.0,
+      "in": 0,
+      "duration": 4.16,
+      "name": "Text Seg 1: HOOK",
+      "props": {
+        "text": "IRRIGATING STEEP HILLS",
+        "font": "Bebas Neue",
+        "fontSize": 76,
+        "color": "#ffffff",
+        "highlightColor": "#ffd166",
+        "textAnim": "word-pop",
+        "wordRate": 0.18,
+        "uppercase": true,
+        "strokeWidth": 6,
+        "strokeColor": "#000000",
+        "textShadow": 16,
+        "y": 320
+      }
+    }
+  },
+  {
+    "op": "applyPreset",
+    "id": "c_text_seg_1",
+    "preset": "pop-in",
+    "length": 0.35
+  },
+  {
+    "op": "addClip",
+    "clip": {
+      "id": "c_text_seg_2",
+      "kind": "text",
+      "mediaId": null,
+      "track": "V2",
+      "start": 4.5,
+      "in": 0,
+      "duration": 11.65,
+      "name": "Text Seg 2: BUILD_UP",
+      "props": {
+        "text": "HIGH PRESSURE PHYSICS",
+        "font": "Bebas Neue",
+        "fontSize": 76,
+        "color": "#ffffff",
+        "highlightColor": "#ffd166",
+        "textAnim": "word-pop",
+        "wordRate": 0.18,
+        "uppercase": true,
+        "strokeWidth": 6,
+        "strokeColor": "#000000",
+        "textShadow": 16,
+        "y": 320
+      }
+    }
+  },
+  {
+    "op": "applyPreset",
+    "id": "c_text_seg_2",
+    "preset": "pop-in",
+    "length": 0.35
+  },
+  {
+    "op": "addClip",
+    "clip": {
+      "id": "c_text_seg_3",
+      "kind": "text",
+      "mediaId": null,
+      "track": "V2",
+      "start": 17.5,
+      "in": 0,
+      "duration": 5.4,
+      "name": "Text Seg 3: CLIMAX",
+      "props": {
+        "text": "EXTREME ATOMIZATION",
+        "font": "Bebas Neue",
+        "fontSize": 76,
+        "color": "#ffffff",
+        "highlightColor": "#ffd166",
+        "textAnim": "word-pop",
+        "wordRate": 0.18,
+        "uppercase": true,
+        "strokeWidth": 6,
+        "strokeColor": "#000000",
+        "textShadow": 16,
+        "y": 320
+      }
+    }
+  },
+  {
+    "op": "applyPreset",
+    "id": "c_text_seg_3",
+    "preset": "pop-in",
+    "length": 0.35
+  },
+  {
+    "op": "addClip",
+    "clip": {
+      "id": "c_text_seg_4",
+      "kind": "text",
+      "mediaId": null,
+      "track": "V2",
+      "start": 26.0,
+      "in": 0,
+      "duration": 5.438,
+      "name": "Text Seg 4: PAYOFF",
+      "props": {
+        "text": "PERFECT COVERAGE",
+        "font": "Bebas Neue",
+        "fontSize": 76,
+        "color": "#ffffff",
+        "highlightColor": "#ffd166",
+        "textAnim": "word-pop",
+        "wordRate": 0.18,
+        "uppercase": true,
+        "strokeWidth": 6,
+        "strokeColor": "#000000",
+        "textShadow": 16,
+        "y": 320
+      }
+    }
+  },
+  {
+    "op": "applyPreset",
+    "id": "c_text_seg_4",
+    "preset": "pop-in",
+    "length": 0.35
+  }
+]

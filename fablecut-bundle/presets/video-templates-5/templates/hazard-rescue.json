@@ -1,0 +1,103 @@
+{
+  "template_id": "hazard-rescue",
+  "version": "1.0.0",
+  "name_en": "Hazard & Rescue",
+  "name_vi": "Cứu hộ móng & Xử lý sự cố",
+  "purpose": "High retention problem-solving. Emergency -> Diagnosis -> Surgical Treatment -> Instant Relief.",
+  "use_when": [
+    "Severe hoof abscess, overgrown hoof, limping cattle or horse",
+    "Field machine breakdown, jammed gear, emergency repair",
+    "Animal rescue or distress requiring hands-on craft"
+  ],
+  "avoid_when": [
+    "Routine harmless maintenance with no drama",
+    "Purely informational tutorials"
+  ],
+  "best_for_niches": [
+    "farrier / hoof care",
+    "large animal veterinary",
+    "farm machinery breakdown / emergency fix"
+  ],
+  "canvas": {
+    "aspect": "9:16",
+    "width": 1080,
+    "height": 1920,
+    "fps": 30
+  },
+  "structure": {
+    "beats": [
+      {
+        "beat": "EMERGENCY",
+        "share": "0-3s",
+        "target_seconds": [0, 3],
+        "note": "Immediate distress shot. High tension alert text (max 3 words)."
+      },
+      {
+        "beat": "DIAGNOSIS",
+        "share": "3-9s",
+        "target_seconds": [3, 9],
+        "note": "Farrier/Technician examines the affected area, pinpoints abscess or clog."
+      },
+      {
+        "beat": "TREATMENT",
+        "share": "9-24s",
+        "target_seconds": [9, 24],
+        "note": "Main surgical cutting, draining pus, cleaning, applying medication & protective pad."
+      },
+      {
+        "beat": "RELIEF",
+        "share": "24-31s",
+        "target_seconds": [24, 31],
+        "note": "The animal walks pain-free or the tractor hums back to life. Heartwarming payoff."
+      }
+    ],
+    "target_total_seconds": [30, 45]
+  },
+  "text_defaults": {
+    "font": "Anton",
+    "font_size": 84,
+    "style": "IMPACT_RED",
+    "bg_color": "#000000",
+    "bg_opacity": 0.0,
+    "stroke_width": 6,
+    "position": "CENTER",
+    "uppercase": true
+  },
+  "captions": {
+    "mode": "karaoke",
+    "word_rate": 0.20,
+    "max_words_per_beat": 4
+  },
+  "layout": {
+    "hook": "high_contrast_warning",
+    "body": "ambient_natural_sound",
+    "payoff": "clean_finish",
+    "music_level": "low"
+  },
+  "sfx_defaults": {
+    "EMERGENCY": {
+      "text_anim": "drop-in",
+      "transition_in": "flash",
+      "filter": "contrast-pop",
+      "sfx": "cinematic_sub_boom"
+    },
+    "DIAGNOSIS": {
+      "text_anim": "clip-reveal",
+      "transition_in": "cut",
+      "filter": "natural",
+      "sfx": "whoosh_fast"
+    },
+    "TREATMENT": {
+      "text_anim": "word-pop",
+      "transition_in": "cut",
+      "filter": "natural",
+      "sfx": "tension_riser_medium"
+    },
+    "RELIEF": {
+      "text_anim": "fade-slide-up",
+      "transition_in": "fade",
+      "filter": "golden-hour",
+      "sfx": "bell_ding"
+    }
+  }
+}

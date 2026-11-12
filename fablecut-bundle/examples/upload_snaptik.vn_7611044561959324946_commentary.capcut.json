@@ -1,0 +1,97 @@
+{
+  "schema_version": 3,
+  "format": "youtube-story-commentary-capcut",
+  "video_metadata": {
+    "video_id": "upload_snaptik.vn_7611044561959324946",
+    "title": "Agricultural irrigation and spraying in an orchard hillside using high-pressure water hoses",
+    "duration_seconds": 31.438005,
+    "skill_applied": "curiosity-explainer",
+    "language": "en",
+    "total_words": 62,
+    "average_wpm": 118.3,
+    "voiceover_audio_file": "upload_snaptik.vn_7611044561959324946_voiceover.wav",
+    "voiceover_voice": "bm_george"
+  },
+  "segments": [
+    {
+      "beat": "HOOK",
+      "time_range": {
+        "start": 0,
+        "end": 4.16
+      },
+      "voiceover": "How do you water an entire steep mountain orchard in minutes?",
+      "voiceover_vi_translation": "Làm thế nào để bạn tưới cả một vườn cây trên sườn đồi dốc đứng chỉ trong vài phút?",
+      "text_overlay": {
+        "text": "IRRIGATING STEEP HILLS",
+        "position": "CENTER",
+        "style": "HIGHLIGHT_YELLOW"
+      },
+      "sfx_cue": {
+        "suggested_sfx": "cinematic_sub_boom",
+        "start_offset": 0.1,
+        "volume": 0.85
+      },
+      "visual_hint": "Wide opening shot of water jet arcing across hillside crops."
+    },
+    {
+      "beat": "BUILD_UP",
+      "time_range": {
+        "start": 4.5,
+        "end": 16.15
+      },
+      "voiceover": "Carrying heavy tanks up terraced slopes is brutal. Instead, high-pressure pumps force liquid through specialized nozzles, launching massive mist streams over dozens of meters.",
+      "voiceover_vi_translation": "Vác những thùng nước nặng lên các bậc thang dốc là cực hình. Thay vào đó, máy bơm áp lực cao đẩy nước qua đầu phun chuyên dụng, phóng các luồng sương khổng lồ xa hàng chục mét.",
+      "text_overlay": {
+        "text": "HIGH PRESSURE PHYSICS",
+        "position": "CENTER",
+        "style": "HIGHLIGHT_YELLOW"
+      },
+      "sfx_cue": {
+        "suggested_sfx": "whoosh_fast",
+        "start_offset": 0.1,
+        "volume": 0.8
+      },
+      "visual_hint": "Close up of metal nozzle and farmer directing the jet across terraces."
+    },
+    {
+      "beat": "CLIMAX",
+      "time_range": {
+        "start": 17.5,
+        "end": 22.9
+      },
+      "voiceover": "The extreme velocity shears the water column apart, atomizing it on the fly.",
+      "voiceover_vi_translation": "Vận tốc cực lớn xé toạc cột nước, nguyên tử hóa nó ngay lập tức thành hàng triệu giọt nhỏ.",
+      "text_overlay": {
+        "text": "EXTREME ATOMIZATION",
+        "position": "CENTER",
+        "style": "HIGHLIGHT_YELLOW"
+      },
+      "sfx_cue": {
+        "suggested_sfx": "tension_riser_medium",
+        "start_offset": 0.1,
+        "volume": 0.85
+      },
+      "visual_hint": "Worker directing horizontal spray beside hillside equipment."
+    },
+    {
+      "beat": "PAYOFF",
+      "time_range": {
+        "start": 26,
+        "end": 32.7
+      },
+      "voiceover": "This creates ultra-fine droplets that coat every leaf evenly without washing the topsoil away.",
+      "voiceover_vi_translation": "Điều này tạo ra những hạt sương siêu mịn bám đều lên từng chiếc lá mà không làm trôi lớp đất mặt.",
+      "text_overlay": {
+        "text": "PERFECT COVERAGE",
+        "position": "CENTER",
+        "style": "HIGHLIGHT_YELLOW"
+      },
+      "sfx_cue": {
+        "suggested_sfx": "pop_clean",
+        "start_offset": 0.1,
+        "volume": 0.75
+      },
+      "visual_hint": "Slow-motion close-up of dense, illuminated droplets dispersing in the air."
+    }
+  ]
+}
