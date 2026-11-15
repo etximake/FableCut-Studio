@@ -2,6 +2,10 @@ import re
 import json
 import zipfile
 import logging
+import base64
+import struct
+import time
+import zlib
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
@@ -25,6 +29,7 @@ from src.storage.db import db
 from src.skills.registry import registry
 from src.crawler.downloader import VideoDownloader
 from src.tts.tts_engine import tts_engine
+from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1")
@@ -171,6 +176,65 @@ async def get_ai_status():
         "tts_ready": tts_engine.is_kokoro_available(),
         "tts_engine": "Kokoro-82M (Local ONNX) & Edge-TTS"
     }
+
+
+def _test_ai_model(model_type: str):
+    """Gửi một request tối thiểu đến model đã cấu hình, không dùng dữ liệu người dùng."""
+    is_vision = model_type == "vision"
+    model = settings.DEFAULT_VISION_MODEL if is_vision else settings.DEFAULT_TEXT_MODEL
+    api_key = settings.OPENAI_API_KEY
+    base_url = settings.OPENAI_BASE_URL
+    if not api_key:
+        return {"ok": False, "model_type": model_type, "model": model,
+                "message": "Chưa cấu hình OPENAI_API_KEY.", "elapsed_ms": None}
+
+    started = time.perf_counter()
+    try:
+        client = OpenAI(api_key=api_key, base_url=base_url, timeout=20.0)
+        content = "Reply with a JSON object containing {\"ok\": true}."
+        if is_vision:
+            # Small valid 32x32 PNG test card; no user image or imaging dependency.
+            def png_chunk(kind: bytes, data: bytes) -> bytes:
+                body = kind + data
+                return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body) & 0xFFFFFFFF)
+
+            width = height = 32
+            scanline = b"\x00" + bytes((96, 152, 208)) * width
+            image_data = zlib.compress(scanline * height)
+            pixel = (
+                b"\x89PNG\r\n\x1a\n"
+                + png_chunk(b"IHDR", struct.pack(">2I5B", width, height, 8, 2, 0, 0, 0))
+                + png_chunk(b"IDAT", image_data)
+                + png_chunk(b"IEND", b"")
+            )
+            content = [
+                {"type": "text", "text": "Describe the color in this image in one short phrase."},
+                {"type": "image_url", "image_url": {"url": "data:image/png;base64," + base64.b64encode(pixel).decode("ascii"), "detail": "low"}},
+            ]
+        response = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": content}],
+            response_format={"type": "json_object"} if not is_vision else None,
+            max_tokens=80,
+            temperature=0,
+        )
+        if not response.choices or not response.choices[0].message.content:
+            raise ValueError("empty model response")
+        return {"ok": True, "model_type": model_type, "model": model,
+                "message": "Model phản hồi thành công.",
+                "elapsed_ms": round((time.perf_counter() - started) * 1000)}
+    except Exception as exc:
+        logger.warning("AI %s model test failed (%s)", model_type, type(exc).__name__)
+        return {"ok": False, "model_type": model_type, "model": model,
+                "message": "Không gọi được model. Kiểm tra API key, base URL, tên model và kết nối.",
+                "elapsed_ms": round((time.perf_counter() - started) * 1000)}
+
+
+@router.post("/ai/test/{model_type}")
+def test_ai_model(model_type: str):
+    if model_type not in ("text", "vision"):
+        raise HTTPException(status_code=404, detail="Loại model không hợp lệ. Dùng text hoặc vision.")
+    return _test_ai_model(model_type)
 
 @router.get("/tts/voices")
 async def list_tts_voices():

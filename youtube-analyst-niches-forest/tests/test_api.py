@@ -38,6 +38,34 @@ def test_ai_status_api():
     assert data["status"] == "ONLINE"
     assert "primary_provider" in data
 
+def test_ai_model_test_text_success(monkeypatch):
+    from src.api import routes
+    from src.core.config import settings
+
+    values = {"OPENAI_API_KEY": "test-key", "DEFAULT_TEXT_MODEL": "test-text-model"}
+    monkeypatch.setattr(settings, "get_var", lambda key, default="": values.get(key, default))
+
+    class FakeCompletions:
+        def create(self, **kwargs):
+            assert kwargs["model"] == "test-text-model"
+            return type("Response", (), {"choices": [type("Choice", (), {"message": type("Message", (), {"content": '{"ok":true}'})()})()]})()
+
+    monkeypatch.setattr(routes, "OpenAI", lambda **kwargs: type("Client", (), {"chat": type("Chat", (), {"completions": FakeCompletions()})()})())
+    response = client.post("/api/v1/ai/test/text")
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+    assert response.json()["model"] == "test-text-model"
+
+def test_ai_model_test_missing_key(monkeypatch):
+    from src.api import routes
+    from src.core.config import settings
+
+    monkeypatch.setattr(settings, "get_var", lambda key, default="": "" if key == "OPENAI_API_KEY" else default)
+    response = client.post("/api/v1/ai/test/vision")
+    assert response.status_code == 200
+    assert response.json()["ok"] is False
+    assert "OPENAI_API_KEY" in response.json()["message"]
+
 def test_static_files_served():
     resp_css = client.get("/static/style.css")
     assert resp_css.status_code == 200

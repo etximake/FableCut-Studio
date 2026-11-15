@@ -4,6 +4,7 @@ let currentInputMode = "url";
 let currentSelectedFile = null;
 let currentResult = null;
 let currentPlayingSfxBtn = null;
+let modelTestResultTimeout = null;
 // SPEC-01: theo dõi bản sửa chưa lưu trong giao diện review
 let isScriptDirty = false;
 let lastSavedAt = null;
@@ -127,6 +128,41 @@ async function fetchAiStatus() {
     }
   } catch (err) {
     console.error("AI Status error:", err);
+  }
+}
+
+async function testAiModel(modelType, button) {
+  const result = document.getElementById("modelTestResult");
+  const buttons = document.querySelectorAll(".model-test-btn");
+  if (modelTestResultTimeout) {
+    clearTimeout(modelTestResultTimeout);
+    modelTestResultTimeout = null;
+  }
+  buttons.forEach(item => { item.disabled = true; });
+  result.hidden = false;
+  result.setAttribute("aria-busy", "true");
+  button.textContent = "Đang test…";
+  result.className = "model-test-result";
+  result.textContent = `⏳ Đang kiểm tra model ${modelType.toUpperCase()}…`;
+  try {
+    const response = await fetch(`/api/v1/ai/test/${modelType}`, { method: "POST" });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "Yêu cầu kiểm tra thất bại.");
+    result.classList.add(data.ok ? "success" : "failure");
+    result.textContent = `${data.ok ? "✅ THÀNH CÔNG" : "❌ THẤT BẠI"} · ${modelType.toUpperCase()} · ${data.model || "model chưa xác định"}: ${data.message || "Không nhận được kết quả kiểm tra."}${data.elapsed_ms == null ? "" : ` (${data.elapsed_ms} ms)`}`;
+  } catch (error) {
+    result.classList.add("failure");
+    result.textContent = `❌ THẤT BẠI · ${modelType.toUpperCase()}: ${error.message || "Không kết nối được máy chủ."}`;
+  } finally {
+    result.removeAttribute("aria-busy");
+    buttons.forEach(item => {
+      item.disabled = false;
+      item.textContent = item.dataset.model === "vision" ? "Test Vision" : "Test Text";
+    });
+    modelTestResultTimeout = setTimeout(() => {
+      result.hidden = true;
+      modelTestResultTimeout = null;
+    }, 2000);
   }
 }
 
