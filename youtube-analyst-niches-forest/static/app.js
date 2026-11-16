@@ -9,6 +9,9 @@ let modelTestResultTimeout = null;
 let templateRegistry = [];
 let currentAnalysis = null;
 let selectedTemplateId = null;
+// Chọn cảnh: gợi ý của AI (để khôi phục) + giới hạn tổng thời lượng.
+let sceneProposal = [];
+let sceneMaxSeconds = 60;
 // SPEC-01: theo dõi bản sửa chưa lưu trong giao diện review
 let isScriptDirty = false;
 let lastSavedAt = null;
@@ -113,6 +116,88 @@ function updateTemplateWarning() {
     warning.hidden = true;
     warning.textContent = "";
   }
+}
+
+// --- Chọn cảnh cho video dài (mốc giây gốc) ---
+
+function renderSceneList(scenes) {
+  const container = document.getElementById("sceneList");
+  if (!container) return;
+  container.innerHTML = "";
+  (scenes || []).forEach((scene, index) => {
+    const row = document.createElement("div");
+    row.className = "scene-row";
+    row.dataset.index = index;
+    row.innerHTML = `
+      <input type="checkbox" class="scene-check" checked aria-label="Dùng cảnh ${index + 1}" />
+      <input type="number" class="scene-time scene-start" value="${scene.start}" min="0" step="0.1" aria-label="Bắt đầu cảnh ${index + 1} (giây)" />
+      <span class="scene-dash">–</span>
+      <input type="number" class="scene-time scene-end" value="${scene.end}" min="0" step="0.1" aria-label="Kết thúc cảnh ${index + 1} (giây)" />
+      <span class="scene-seconds"></span>
+      <span class="scene-reason">${escapeHtml(scene.reason || "")}</span>
+    `;
+    row.querySelectorAll("input").forEach(input => input.addEventListener("change", updateSceneTotal));
+    row.querySelectorAll("input").forEach(input => input.addEventListener("input", updateSceneTotal));
+    container.appendChild(row);
+  });
+  updateSceneTotal();
+}
+
+function resetSceneProposal() {
+  renderSceneList(sceneProposal);
+}
+
+function readConfirmedScenes() {
+  const rows = Array.from(document.querySelectorAll("#sceneList .scene-row"));
+  const duration = currentAnalysis?.visual_timeline?.duration_seconds || 0;
+  const scenes = [];
+  const errors = [];
+  rows.forEach((row, index) => {
+    if (!row.querySelector(".scene-check").checked) return;
+    const start = parseFloat(row.querySelector(".scene-start").value);
+    const end = parseFloat(row.querySelector(".scene-end").value);
+    const label = `Cảnh ${index + 1}`;
+    if (!Number.isFinite(start) || !Number.isFinite(end)) {
+      errors.push(`${label}: giờ chưa hợp lệ.`);
+      return;
+    }
+    if (start < 0 || end <= start) errors.push(`${label}: cần 0 ≤ bắt đầu < kết thúc.`);
+    if (end > duration + 0.01) errors.push(`${label}: kết thúc vượt thời lượng video (${duration.toFixed(1)}s).`);
+    scenes.push({ start, end, reason: row.querySelector(".scene-reason").textContent || "" });
+  });
+  scenes.sort((a, b) => a.start - b.start);
+  for (let i = 1; i < scenes.length; i++) {
+    if (scenes[i].start < scenes[i - 1].end - 0.01) errors.push("Có 2 cảnh chồng lên nhau.");
+  }
+  const total = scenes.reduce((sum, scene) => sum + (scene.end - scene.start), 0);
+  if (scenes.length === 0) errors.push("Chưa chọn cảnh nào.");
+  if (total > sceneMaxSeconds + 0.01) errors.push(`Tổng ${total.toFixed(1)}s vượt giới hạn ${sceneMaxSeconds.toFixed(1)}s.`);
+  return { scenes, errors, total };
+}
+
+function updateSceneTotal() {
+  const section = document.getElementById("sceneSection");
+  if (!section || section.style.display === "none") return;
+  const { scenes, errors, total } = readConfirmedScenes();
+  document.querySelectorAll("#sceneList .scene-row").forEach(row => {
+    const checked = row.querySelector(".scene-check").checked;
+    const start = parseFloat(row.querySelector(".scene-start").value);
+    const end = parseFloat(row.querySelector(".scene-end").value);
+    const secondsEl = row.querySelector(".scene-seconds");
+    secondsEl.textContent = (checked && Number.isFinite(start) && Number.isFinite(end) && end > start)
+      ? `${(end - start).toFixed(1)}s` : "—";
+  });
+  const totalEl = document.getElementById("sceneTotal");
+  totalEl.textContent = `Đã chọn ${scenes.length} cảnh, tổng ${total.toFixed(1)}s / tối đa ${sceneMaxSeconds.toFixed(1)}s.`;
+  const warning = document.getElementById("sceneWarning");
+  if (errors.length > 0) {
+    warning.hidden = false;
+    warning.textContent = errors[0];
+  } else {
+    warning.hidden = true;
+    warning.textContent = "";
+  }
+  document.getElementById("btnGenerateScript").disabled = errors.length > 0;
 }
 
 // Fetch TTS Voices
@@ -428,6 +513,19 @@ async function analyzeVideo() {
     renderAnalysisResult(data);
     renderTemplateCards();
     updateTemplateHint(data.template_recommendation);
+    sceneProposal = data.scene_proposal || [];
+    sceneMaxSeconds = data.max_scene_seconds || 60;
+    const sceneSection = document.getElementById("sceneSection");
+    if (data.needs_scene_selection && sceneProposal.length > 0) {
+      const originalDuration = data.visual_timeline?.duration_seconds || 0;
+      document.getElementById("sceneIntro").textContent =
+        `Video gốc dài ${originalDuration.toFixed(1)}s. AI gợi ý ${sceneProposal.length} cảnh dưới đây; bạn duyệt hoặc sửa trước khi viết kịch bản.`;
+      sceneSection.style.display = "block";
+      renderSceneList(sceneProposal);
+    } else {
+      sceneSection.style.display = "none";
+      document.getElementById("btnGenerateScript").disabled = false;
+    }
     document.getElementById("step2Section").style.display = "block";
     // Xóa kịch bản cũ khỏi cột biên tập: video mới chưa có kịch bản.
     document.getElementById("segmentsList").innerHTML = '<div class="empty-placeholder">Xem timeline ở cột giữa, chốt template ở cột trái, rồi bấm "Viết kịch bản".</div>';
@@ -469,6 +567,18 @@ async function generateScriptFromAnalysis() {
     return;
   }
 
+  // Cảnh đã chốt (chỉ khi video dài và mục chọn cảnh đang hiện).
+  let confirmedScenes = null;
+  const sceneSection = document.getElementById("sceneSection");
+  if (sceneSection && sceneSection.style.display !== "none") {
+    const checked = readConfirmedScenes();
+    if (checked.errors.length > 0) {
+      alert("Chưa viết được kịch bản: " + checked.errors[0]);
+      return;
+    }
+    confirmedScenes = checked.scenes;
+  }
+
   const btn = document.getElementById("btnGenerateScript");
   const btnText = document.getElementById("btnGenerateScriptText");
   const language = document.getElementById("languageSelect").value;
@@ -489,6 +599,7 @@ async function generateScriptFromAnalysis() {
         template_id: selectedTemplateId,
         ...getDescriptionPayload(),
         narrator_mode: document.getElementById("narratorSelect")?.value || null,
+        scenes: confirmedScenes,
         language: language,
         enable_tts: enableTts,
         tts_voice: ttsVoice,
@@ -885,6 +996,19 @@ async function handleQuickRewrite() {
   }
 
   const btn = document.getElementById("btnRewrite");
+
+  // Viết lại dùng đúng cảnh đang chốt (nếu mục chọn cảnh đang hiện).
+  let confirmedScenes = null;
+  const sceneSection = document.getElementById("sceneSection");
+  if (sceneSection && sceneSection.style.display !== "none") {
+    const checked = readConfirmedScenes();
+    if (checked.errors.length > 0) {
+      alert("Chưa viết lại được: " + checked.errors[0]);
+      return;
+    }
+    confirmedScenes = checked.scenes;
+  }
+
   btn.disabled = true;
   btn.innerHTML = '<span>⏳</span> Đang đổi phong cách & thu âm...';
 
@@ -903,6 +1027,7 @@ async function handleQuickRewrite() {
         template_id: selectedTemplateId,
         ...getDescriptionPayload(),
         narrator_mode: document.getElementById("narratorSelect")?.value || null,
+        scenes: confirmedScenes,
         language: language,
         enable_tts: enableTts,
         tts_voice: ttsVoice,

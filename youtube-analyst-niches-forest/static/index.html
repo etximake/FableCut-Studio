@@ -89,6 +89,16 @@
 
         <!-- Bước 2: chốt template + ngôi kể (hiện sau khi phân tích xong) -->
         <div id="step2Section" style="display: none;">
+          <div class="form-group" id="sceneSection" style="display: none;">
+            <label class="form-label">Cảnh đã chọn (chỉ các cảnh này được ghép thành Short):</label>
+            <p class="form-hint" id="sceneIntro"></p>
+            <div id="sceneList"></div>
+            <p class="form-hint" id="sceneTotal" aria-live="polite"></p>
+            <p id="sceneWarning" class="template-warning" aria-live="polite" hidden></p>
+            <button type="button" class="btn-secondary" id="btnResetScenes" onclick="resetSceneProposal()">Khôi phục gợi ý của AI</button>
+            <p class="form-hint">Timeline ở cột giữa là video gốc. Bỏ tick để loại cảnh, sửa giờ để nới/hẹp cảnh; tổng không vượt giới hạn.</p>
+          </div>
+
           <div class="form-group">
             <label class="form-label">Bước 2: Chốt template dựng (AI gợi ý, bạn quyết định):</label>
             <p id="templateRecommendationNote" class="form-hint" aria-live="polite"></p>

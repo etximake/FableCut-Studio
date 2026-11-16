@@ -41,6 +41,16 @@ class DatabaseManager:
                     FOREIGN KEY(video_id) REFERENCES visual_timelines(video_id)
                 );
             """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS scene_selections (
+                    video_id TEXT PRIMARY KEY,
+                    scenes_json TEXT,
+                    total_seconds REAL,
+                    source_video_path TEXT,
+                    trimmed_video_path TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
             conn.commit()
 
     def save_visual_timeline(self, timeline: VisualActionTimeline):
@@ -62,6 +72,50 @@ class DatabaseManager:
             row = cursor.fetchone()
             if row:
                 return VisualActionTimeline(**json.loads(row["timeline_json"]))
+        return None
+
+    def save_scene_selection(
+        self,
+        video_id: str,
+        scenes: List[Dict[str, Any]],
+        total_seconds: float,
+        source_video_path: Optional[str] = None,
+        trimmed_video_path: Optional[str] = None,
+    ):
+        """Lưu lựa chọn cảnh (mốc giây gốc) + đường dẫn video gốc/ghép.
+
+        Giữ source_video_path để lần viết kịch bản sau vẫn ghép lại được từ
+        video gốc, kể cả khi file export <video_id>.mp4 đã là clip ghép.
+        """
+        with self._get_connection() as conn:
+            conn.execute("""
+                INSERT OR REPLACE INTO scene_selections
+                    (video_id, scenes_json, total_seconds, source_video_path, trimmed_video_path)
+                VALUES (?, ?, ?, ?, ?);
+            """, (
+                video_id,
+                json.dumps(scenes, ensure_ascii=False),
+                total_seconds,
+                source_video_path,
+                trimmed_video_path,
+            ))
+            conn.commit()
+
+    def get_scene_selection(self, video_id: str) -> Optional[Dict[str, Any]]:
+        with self._get_connection() as conn:
+            cursor = conn.execute(
+                "SELECT scenes_json, total_seconds, source_video_path, trimmed_video_path"
+                " FROM scene_selections WHERE video_id = ?;",
+                (video_id,),
+            )
+            row = cursor.fetchone()
+            if row:
+                return {
+                    "scenes": json.loads(row["scenes_json"]),
+                    "total_seconds": row["total_seconds"],
+                    "source_video_path": row["source_video_path"],
+                    "trimmed_video_path": row["trimmed_video_path"],
+                }
         return None
 
     def save_commentary_script(self, script: CapCutCommentaryInterchange) -> int:

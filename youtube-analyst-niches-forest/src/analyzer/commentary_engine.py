@@ -277,6 +277,7 @@ class CommentaryScriptEngine:
         description_activity: Optional[str] = None,
         description_focus: Optional[str] = None,
         narrator_mode: Optional[str] = None,
+        scene_note: Optional[str] = None,
     ) -> CapCutCommentaryInterchange:
         """
         Tạo kịch bản lời bình đồng bộ với dòng thời gian thị giác.
@@ -316,6 +317,12 @@ class CommentaryScriptEngine:
                 f"\nGÓC KỂ TỪ TIMELINE: {story_angle}\n"
                 "Viết lời bình bám góc kể này; chỉ khẳng định nội dung được hỗ trợ bởi evidence_source/confidence.\n"
             )
+        if scene_note:
+            user_prompt += (
+                f"\nCẢNH ĐÃ CHỌN: {scene_note}\n"
+                "Timeline trên đã dồn mốc giây về 0 theo clip đã ghép; viết lời bình liền mạch "
+                "như một video liên tục, mốc giây của segment tính theo clip đã ghép.\n"
+            )
 
         raw_result = None
         # 1. Gọi Primary Text Provider
@@ -351,6 +358,7 @@ class CommentaryScriptEngine:
 
         # Cập nhật metadata chính xác
         if "video_metadata" in raw_result:
+            raw_result["video_metadata"]["duration_seconds"] = duration
             raw_result["video_metadata"]["total_words"] = total_words
             raw_result["video_metadata"]["average_wpm"] = average_wpm
             raw_result["video_metadata"]["skill_applied"] = skill.skill_id

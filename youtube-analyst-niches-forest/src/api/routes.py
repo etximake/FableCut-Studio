@@ -1,5 +1,6 @@
 import re
 import json
+import shutil
 import zipfile
 import logging
 import base64
@@ -23,6 +24,7 @@ from src.models.schemas import (
     VisualActionTimeline,
     CapCutCommentaryInterchange,
     GenerateCommentaryRequest,
+    SceneRange,
     CommentaryGenerationResponse,
     ExportRequest,
     VisualTimelineUpdate,
@@ -33,6 +35,15 @@ from src.models.schemas import (
 from src.preprocessor.video_preprocessor import LocalVideoPreprocessor
 from src.analyzer.vision_engine import VisionActionEngine
 from src.analyzer.commentary_engine import CommentaryScriptEngine, TEMPLATE_VOICE_DEFAULTS
+from src.analyzer.scene_selector import (
+    covers_full_video,
+    describe_scenes,
+    needs_scene_selection,
+    propose_scenes,
+    rebase_timeline,
+    total_seconds,
+    validate_scenes,
+)
 from src.exporter.capcut import CapCutExporter, ExportResult, validate_interchange
 from src.storage.db import db
 from src.skills.registry import registry
@@ -111,6 +122,123 @@ def _resolve_video_asset(
                 if m.is_file():
                     return m
     return None
+
+
+def _build_scene_note(original_duration: float, scenes: List[SceneRange]) -> str:
+    if not scenes or covers_full_video(scenes, original_duration):
+        return ""
+    return (
+        f"Video gốc {original_duration:.1f}s; đã chọn các cảnh {describe_scenes(scenes)} "
+        f"(tổng {total_seconds(scenes):.1f}s) ghép thành 1 clip liên tục."
+    )
+
+
+def _resolve_source_video(video_id: str, stored_path: Optional[str]) -> Optional[Path]:
+    """Tìm video GỐC để ghép cảnh. Không bao giờ dùng file export <video_id>.mp4
+    vì sau lần xuất có chọn cảnh, file đó đã là clip ghép (ghép lại từ nó sẽ
+    sai mốc giây). Thứ tự: đường dẫn đã lưu -> bản gốc đã giữ -> file trong TEMP_DIR."""
+    if stored_path:
+        candidate = Path(stored_path)
+        if candidate.is_file():
+            return candidate
+    video_dir = settings.get_video_export_dir(video_id, create=False)
+    for ext in (".mp4", ".mov", ".mkv", ".webm"):
+        candidate = video_dir / f"{video_id}_original{ext}"
+        if candidate.is_file():
+            return candidate
+    for ext in (".mp4", ".mov", ".mkv", ".webm"):
+        candidate = settings.TEMP_DIR / f"{video_id}{ext}"
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _preserve_original_video(video_id: str, source_path: str) -> None:
+    """Giữ 1 bản sao video gốc cạnh file export, để lần sau đổi cảnh vẫn ghép
+    lại được từ gốc. Best-effort: lỗi thì chỉ ghi log, không chặn xuất file."""
+    try:
+        source = Path(source_path)
+        if not source.is_file():
+            return
+        video_dir = settings.get_video_export_dir(video_id)
+        target = video_dir / f"{video_id}_original{source.suffix or '.mp4'}"
+        if target.exists() or source.resolve() == target.resolve():
+            return
+        shutil.copy2(source, target)
+    except Exception as err:
+        logger.warning(f"Preserve original video failed for {video_id}: {err}")
+
+
+def _apply_scene_selection(
+    video_id: str,
+    full_timeline: VisualActionTimeline,
+    scenes: List[SceneRange],
+    max_seconds: float,
+    source_path: Optional[str],
+    build_media: bool,
+):
+    """Áp dụng cảnh đã chốt: kiểm tra, dồn timeline, (tùy chọn) ghép clip.
+
+    Trả về (active_timeline, trimmed_path_or_None, scenes_applied, scene_note).
+    Cảnh bao toàn bộ video thì không ghép gì cả. Lỗi kiểm tra -> HTTP 400.
+    """
+    errors = validate_scenes(scenes, full_timeline.duration_seconds, max_seconds)
+    if errors:
+        raise HTTPException(status_code=400, detail="Lựa chọn cảnh không hợp lệ: " + " ".join(errors))
+    existing = db.get_scene_selection(video_id)
+    stored_source = source_path or (existing or {}).get("source_video_path")
+    if covers_full_video(scenes, full_timeline.duration_seconds):
+        db.save_scene_selection(
+            video_id, [scene.model_dump() for scene in scenes],
+            total_seconds(scenes), source_video_path=stored_source,
+        )
+        return full_timeline, None, scenes, ""
+    active_timeline = rebase_timeline(full_timeline, scenes)
+    scene_note = _build_scene_note(full_timeline.duration_seconds, scenes)
+    trimmed_path = None
+    if build_media:
+        source = _resolve_source_video(video_id, stored_source)
+        if source is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Không tìm thấy video gốc để ghép cảnh. Vui lòng tải lại video và phân tích lại.",
+            )
+        safe_id = settings.sanitize_video_id(video_id)
+        trimmed_path = preprocessor.concat_scenes(
+            str(source),
+            [(scene.start, scene.end) for scene in scenes],
+            output_path=str(settings.TEMP_DIR / f"{safe_id}_scenes.mp4"),
+        )
+        stored_source = str(source)
+    db.save_scene_selection(
+        video_id, [scene.model_dump() for scene in scenes],
+        total_seconds(scenes), source_video_path=stored_source,
+        trimmed_video_path=trimmed_path,
+    )
+    return active_timeline, trimmed_path, scenes, scene_note
+
+
+def _get_active_timeline(video_id: str):
+    """Trả về (full_timeline, active_timeline, scenes_applied).
+
+    Active timeline là timeline đã dồn theo cảnh đã lưu (nếu có); nếu chưa
+    từng chọn cảnh thì active = full. Chỉ tính toán, không ghép media.
+    """
+    full_timeline = db.get_visual_timeline(video_id)
+    if not full_timeline:
+        return None, None, []
+    stored = db.get_scene_selection(video_id)
+    if not stored:
+        return full_timeline, full_timeline, []
+    try:
+        scenes = [SceneRange(**scene) for scene in stored["scenes"]]
+    except Exception:
+        return full_timeline, full_timeline, []
+    if covers_full_video(scenes, full_timeline.duration_seconds):
+        return full_timeline, full_timeline, scenes
+    if validate_scenes(scenes, full_timeline.duration_seconds, float("inf")):
+        return full_timeline, full_timeline, []
+    return full_timeline, rebase_timeline(full_timeline, scenes), scenes
 
 
 def cleanup_video_temp_files(
@@ -319,6 +447,18 @@ def analyze_video(request: AnalyzeRequest):
     visual_timeline.template_recommendation_reason = recommendation.reason
     visual_timeline.template_selection_source = recommendation.source
     db.save_visual_timeline(visual_timeline)
+    # Gợi ý cảnh cho video dài: người dùng duyệt/sửa ở bước 2. Lưu kèm đường
+    # dẫn video gốc để bước viết kịch bản ghép clip được.
+    max_seconds = settings.MAX_SHORT_SECONDS
+    scene_proposal = propose_scenes(visual_timeline, recommendation.template_id, max_seconds)
+    needs_selection = needs_scene_selection(visual_timeline.duration_seconds, max_seconds)
+    try:
+        db.save_scene_selection(
+            video_id, [scene.model_dump() for scene in scene_proposal],
+            total_seconds(scene_proposal), source_video_path=str(video_path),
+        )
+    except Exception as err:
+        logger.warning(f"Scene proposal not saved for {video_id}: {err}")
     return AnalyzeResponse(
         video_id=video_id,
         contact_sheet_url=f"/api/v1/images/contact-sheet/{video_id}",
@@ -327,6 +467,9 @@ def analyze_video(request: AnalyzeRequest):
         template_recommendation=recommendation,
         narrator_mode=narrator_mode,
         target_feeling=target_feeling,
+        scene_proposal=scene_proposal,
+        max_scene_seconds=max_seconds,
+        needs_scene_selection=needs_selection,
     )
 
 
@@ -371,17 +514,30 @@ def process_video(request: CommentaryRequest):
         raise HTTPException(status_code=500, detail=f"Lỗi phân tích thị giác Chặng 1: {str(e)}")
 
     # 3. Chặng 2: Biên kịch lời bình theo Skill (Text LLM ~400 tokens)
+    # Video dài: tự áp dụng gợi ý cảnh (luồng cũ không có bước duyệt của
+    # người dùng), để kịch bản và file xuất ra không vượt giới hạn Short.
+    active_timeline = visual_timeline
+    trimmed_path = None
+    scenes_applied: List[SceneRange] = []
+    scene_note = ""
     try:
+        max_seconds = settings.MAX_SHORT_SECONDS
+        scene_proposal = propose_scenes(visual_timeline, request.template_id, max_seconds)
+        active_timeline, trimmed_path, scenes_applied, scene_note = _apply_scene_selection(
+            video_id, visual_timeline, scene_proposal, max_seconds,
+            source_path=str(video_path), build_media=True,
+        )
         capcut_script = commentary_engine.generate_commentary(
-            visual_timeline=visual_timeline,
+            visual_timeline=active_timeline,
             skill_id=request.skill_id,
             language=request.language,
-            target_duration=duration,
+            target_duration=active_timeline.duration_seconds,
             template_id=request.template_id,
             description_subject=request.description_subject,
             description_activity=request.description_activity,
             description_focus=request.description_focus,
             narrator_mode=request.narrator_mode,
+            scene_note=scene_note or None,
         )
 
         # 4. Chặng 3: Sinh giọng đọc Voiceover TTS nếu được bật
@@ -399,14 +555,18 @@ def process_video(request: CommentaryRequest):
             except Exception as tts_err:
                 logger.warning(f"Voiceover TTS generation warning: {tts_err}")
 
-        # Lưu kịch bản vào DB và xuất file kèm contact sheet & thumbnail
+        # Lưu kịch bản vào DB và xuất file kèm contact sheet & thumbnail.
+        # Khi có chọn cảnh, file video xuất ra phải là clip đã ghép để khớp
+        # mốc giây trong JSON; bản gốc được giữ riêng trước khi dọn temp.
         db.save_commentary_script(capcut_script)
         export_result = exporter.export(
             capcut_script,
             audio_path=audio_file_path,
             contact_sheet_path=contact_sheet_path,
-            video_path=video_path
+            video_path=trimmed_path or video_path
         )
+        if trimmed_path:
+            _preserve_original_video(video_id, video_path)
 
         # Dọn các file trung gian trong TEMP_DIR ngay sau khi export xong
         cleanup_video_temp_files(
@@ -416,6 +576,8 @@ def process_video(request: CommentaryRequest):
             audio_path=audio_file_path,
             export_result=export_result
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi biên soạn lời bình Chặng 2: {str(e)}")
 
@@ -430,6 +592,7 @@ def process_video(request: CommentaryRequest):
     visual_timeline.template_selection_source = template_recommendation.source
     db.save_visual_timeline(visual_timeline)
     script_review_notes = commentary_engine.validate_generated_script(capcut_script)
+    scene_review_notes = [scene_note] if scene_note else []
     return ProcessVideoResponse(
         status="SUCCESS",
         video_id=video_id,
@@ -445,14 +608,15 @@ def process_video(request: CommentaryRequest):
             "total_tokens": 1470
         },
         template_recommendation=template_recommendation,
-        review_notes=script_review_notes + [
+        review_notes=scene_review_notes + script_review_notes + [
             f"Template: {template_recommendation.template_id} ({template_recommendation.source}). {template_recommendation.reason}",
             f"Ngôi kể: {narrator_mode}; cảm giác mục tiêu: {target_feeling}.",
             "Các phát biểu kỹ thuật hoặc nguyên nhân không thể xác nhận từ hình/âm thanh cần được người dùng kiểm tra.",
         ],
-        story_angle=commentary_engine.derive_story_angle(visual_timeline),
+        story_angle=commentary_engine.derive_story_angle(active_timeline),
         narrator_mode=narrator_mode,
         target_feeling=target_feeling,
+        scenes_applied=scenes_applied,
         qa_metadata={
             "template_id": template_recommendation.template_id,
             "template_source": template_recommendation.source,
@@ -462,40 +626,65 @@ def process_video(request: CommentaryRequest):
             "prompt_version": "simplified-batch1-v1",
             "model": settings.DEFAULT_TEXT_MODEL,
             "warnings_count": len(script_review_notes),
+            "scenes_applied": [scene.model_dump() for scene in scenes_applied],
+            "original_duration_seconds": visual_timeline.duration_seconds,
         },
     )
 
 
 @router.post("/commentary/generate-script", response_model=CommentaryGenerationResponse)
 def generate_script_from_saved_analysis(request: GenerateCommentaryRequest):
-    """Generate/re-generate script from a saved visual timeline without re-running Vision."""
-    visual_timeline = db.get_visual_timeline(request.video_id)
-    if not visual_timeline:
+    """Generate/re-generate script from a saved visual timeline without re-running Vision.
+
+    Cảnh đã chốt (request.scenes, hoặc lựa chọn đã lưu) được áp dụng trước khi
+    viết kịch bản: timeline dồn về clip ghép, và khi content_only=False thì
+    clip ghép được tạo và xuất làm file video đi kèm JSON.
+    """
+    full_timeline = db.get_visual_timeline(request.video_id)
+    if not full_timeline:
         raise HTTPException(status_code=404, detail=f"Không tìm thấy phân tích cho video {request.video_id}.")
     recommendation = commentary_engine.recommend_template(
-        visual_timeline, request.template_id
+        full_timeline, request.template_id
     )
     narrator_mode, target_feeling, _feeling_rule = commentary_engine.resolve_narrator_and_feeling(
         recommendation.template_id, request.narrator_mode
     )
-    visual_timeline.selected_template_id = recommendation.template_id
-    visual_timeline.template_recommendation_reason = recommendation.reason
-    visual_timeline.template_selection_source = recommendation.source
-    db.save_visual_timeline(visual_timeline)
+    full_timeline.selected_template_id = recommendation.template_id
+    full_timeline.template_recommendation_reason = recommendation.reason
+    full_timeline.template_selection_source = recommendation.source
+    db.save_visual_timeline(full_timeline)
+
+    max_seconds = request.max_seconds or settings.MAX_SHORT_SECONDS
+    stored = db.get_scene_selection(request.video_id)
+    scenes = request.scenes
+    if scenes is None and stored:
+        try:
+            scenes = [SceneRange(**scene) for scene in stored["scenes"]]
+        except Exception:
+            scenes = None
+    source_path = stored["source_video_path"] if stored else None
     try:
+        if scenes is not None:
+            active_timeline, trimmed_path, scenes_applied, scene_note = _apply_scene_selection(
+                request.video_id, full_timeline, scenes, max_seconds, source_path,
+                build_media=not request.content_only,
+            )
+        else:
+            active_timeline, trimmed_path, scenes_applied, scene_note = full_timeline, None, [], ""
         script = commentary_engine.generate_commentary(
-            visual_timeline=visual_timeline,
+            visual_timeline=active_timeline,
             skill_id=request.skill_id,
             language=request.language,
-            target_duration=visual_timeline.duration_seconds,
+            target_duration=active_timeline.duration_seconds,
             template_id=recommendation.template_id,
             description_subject=request.description_subject,
             description_activity=request.description_activity,
             description_focus=request.description_focus,
             narrator_mode=request.narrator_mode,
+            scene_note=scene_note or None,
         )
         notes = commentary_engine.validate_generated_script(script)
-        qa_metadata = {"template_id": recommendation.template_id, "template_source": recommendation.source, "template_version": "1.1.0", "narrator_mode": narrator_mode, "target_feeling": target_feeling, "prompt_version": "simplified-batch1-v1", "model": settings.DEFAULT_TEXT_MODEL, "warnings_count": len(notes)}
+        qa_metadata = {"template_id": recommendation.template_id, "template_source": recommendation.source, "template_version": "1.1.0", "narrator_mode": narrator_mode, "target_feeling": target_feeling, "prompt_version": "simplified-batch1-v1", "model": settings.DEFAULT_TEXT_MODEL, "warnings_count": len(notes), "scenes_applied": [scene.model_dump() for scene in scenes_applied], "original_duration_seconds": full_timeline.duration_seconds}
         if request.content_only:
             return CommentaryGenerationResponse(
                 video_id=request.video_id,
@@ -503,26 +692,34 @@ def generate_script_from_saved_analysis(request: GenerateCommentaryRequest):
                 template_recommendation=recommendation,
                 review_notes=notes,
                 source=recommendation.source,
-                story_angle=commentary_engine.derive_story_angle(visual_timeline),
+                story_angle=commentary_engine.derive_story_angle(active_timeline),
                 narrator_mode=narrator_mode,
                 target_feeling=target_feeling,
                 qa_metadata=qa_metadata,
+                scenes_applied=scenes_applied,
+                original_duration_seconds=full_timeline.duration_seconds,
             )
         if request.enable_tts:
             tts_engine.synthesize_script(script=script, voice=request.tts_voice, speed=request.tts_speed)
         db.save_commentary_script(script)
         try:
-            exporter.export(script)
+            exporter.export(script, video_path=trimmed_path)
         except Exception as export_exc:
             logger.warning("Generated script saved but export failed for %s: %s", request.video_id, export_exc)
+        if trimmed_path:
+            refreshed = db.get_scene_selection(request.video_id)
+            if refreshed and refreshed.get("source_video_path"):
+                _preserve_original_video(request.video_id, refreshed["source_video_path"])
         return CommentaryGenerationResponse(
             video_id=request.video_id, capcut_json=script,
             template_recommendation=recommendation, review_notes=notes,
             source=recommendation.source,
-            story_angle=commentary_engine.derive_story_angle(visual_timeline),
+            story_angle=commentary_engine.derive_story_angle(active_timeline),
             narrator_mode=narrator_mode,
             target_feeling=target_feeling,
             qa_metadata=qa_metadata,
+            scenes_applied=scenes_applied,
+            original_duration_seconds=full_timeline.duration_seconds,
         )
     except HTTPException:
         raise
@@ -538,7 +735,7 @@ def rewrite_one_segment(request: PartialRewriteRequest):
     if request.segment_index >= len(script.segments):
         raise HTTPException(status_code=422, detail="segment_index nằm ngoài phạm vi kịch bản.")
     original = script.segments[request.segment_index]
-    timeline = db.get_visual_timeline(request.video_id)
+    _full_timeline, timeline, _scenes = _get_active_timeline(request.video_id)
     evidence = timeline.action_timeline[request.segment_index] if timeline and request.segment_index < len(timeline.action_timeline) else None
     skill = registry.get(request.skill_id)
     prompt = (
@@ -656,7 +853,7 @@ def rewrite_commentary(request: RewriteRequest):
     - Chỉ chạy Chặng 2 Text LLM (~400 text tokens)
     - Tự động tái tạo Voiceover TTS nếu được bật
     """
-    visual_timeline = db.get_visual_timeline(request.video_id)
+    visual_timeline, active_timeline, scenes_applied = _get_active_timeline(request.video_id)
     if not visual_timeline:
         raise HTTPException(
             status_code=404,
@@ -665,7 +862,7 @@ def rewrite_commentary(request: RewriteRequest):
 
     try:
         new_script = commentary_engine.generate_commentary(
-            visual_timeline=visual_timeline,
+            visual_timeline=active_timeline,
             skill_id=request.new_skill_id,
             language=request.language or "vi",
             template_id=request.template_id,
@@ -673,6 +870,7 @@ def rewrite_commentary(request: RewriteRequest):
             description_activity=request.description_activity,
             description_focus=request.description_focus,
             narrator_mode=request.narrator_mode,
+            scene_note=_build_scene_note(visual_timeline.duration_seconds, scenes_applied) or None,
         )
 
         audio_file_path = None
@@ -689,7 +887,11 @@ def rewrite_commentary(request: RewriteRequest):
         db.save_commentary_script(new_script)
         export_result = exporter.export(new_script, audio_path=audio_file_path)
         cleanup_video_temp_files(request.video_id, audio_path=audio_file_path, export_result=export_result)
-        return RewriteResponse(video_id=request.video_id, capcut_json=new_script, review_notes=commentary_engine.validate_generated_script(new_script))
+        review_notes = commentary_engine.validate_generated_script(new_script)
+        scene_note = _build_scene_note(visual_timeline.duration_seconds, scenes_applied)
+        if scene_note:
+            review_notes = [scene_note] + review_notes
+        return RewriteResponse(video_id=request.video_id, capcut_json=new_script, review_notes=review_notes)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi viết lại kịch bản: {str(e)}")
 

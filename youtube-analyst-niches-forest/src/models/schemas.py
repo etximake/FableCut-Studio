@@ -72,6 +72,18 @@ class TemplateRecommendation(BaseModel):
     reason: str
     source: Literal["manual", "recommended"]
 
+
+class SceneRange(BaseModel):
+    """Một cảnh được chọn từ video gốc, theo mốc giây GỐC.
+
+    Các cảnh được ghép thành 1 clip liên tục trước khi viết kịch bản, vì
+    converter bắt buộc timeline liền mạch; mốc giây trong kịch bản là mốc
+    giây của clip đã ghép (bắt đầu từ 0), không phải mốc giây gốc.
+    """
+    start: float = Field(..., ge=0.0, description="Giây bắt đầu trong video gốc")
+    end: float = Field(..., ge=0.0, description="Giây kết thúc trong video gốc")
+    reason: str = Field(default="", description="Vì sao cảnh này được chọn")
+
 # ==========================================
 # 3. CHẶNG 2: KỊCH BẢN LỜI BÌNH & CAPCUT INTERCHANGE V3
 # ==========================================
@@ -191,6 +203,9 @@ class AnalyzeResponse(BaseModel):
     template_recommendation: TemplateRecommendation
     narrator_mode: str
     target_feeling: str
+    scene_proposal: List[SceneRange] = Field(default_factory=list, description="Cảnh AI gợi ý ghép thành Short (mốc giây gốc)")
+    max_scene_seconds: float = Field(default=60.0, description="Tổng thời lượng tối đa của các cảnh đã chọn")
+    needs_scene_selection: bool = Field(default=False, description="True khi video dài hơn max_scene_seconds")
 
 
 class CommentaryRequest(BaseModel):
@@ -251,6 +266,7 @@ class ProcessVideoResponse(BaseModel):
     narrator_mode: Optional[str] = None
     target_feeling: Optional[str] = None
     qa_metadata: dict = Field(default_factory=dict)
+    scenes_applied: List[SceneRange] = Field(default_factory=list, description="Cảnh thực sự dùng cho kịch bản (mốc giây gốc)")
 
 
 class GenerateCommentaryRequest(BaseModel):
@@ -261,6 +277,8 @@ class GenerateCommentaryRequest(BaseModel):
     description_activity: Optional[str] = Field(default=None, max_length=160)
     description_focus: Optional[str] = Field(default=None, max_length=160)
     narrator_mode: Optional[NarratorMode] = Field(default=None, description="Ngôi kể; None = dùng mặc định theo template")
+    scenes: Optional[List[SceneRange]] = Field(default=None, description="Cảnh đã chốt (mốc giây gốc); None = dùng lựa chọn đã lưu hoặc toàn bộ video")
+    max_seconds: Optional[float] = Field(default=None, gt=0.0, description="Tổng thời lượng tối đa của cảnh; None = dùng MAX_SHORT_SECONDS")
     language: str = "vi"
     enable_tts: bool = False
     content_only: bool = True
@@ -292,6 +310,8 @@ class CommentaryGenerationResponse(BaseModel):
     narrator_mode: Optional[str] = None
     target_feeling: Optional[str] = None
     qa_metadata: dict = Field(default_factory=dict)
+    scenes_applied: List[SceneRange] = Field(default_factory=list, description="Cảnh thực sự dùng cho kịch bản (mốc giây gốc)")
+    original_duration_seconds: Optional[float] = Field(default=None, description="Thời lượng video gốc trước khi chọn cảnh")
 
 
 class RewriteResponse(BaseModel):
