@@ -2,9 +2,8 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
 import json
 
-# Chỉ các trường quan sát được mới đưa vào prompt chặng 2. Các trường
-# deprecated (topic/video_purpose/...) và metadata gợi ý không bao giờ
-# được đưa vào prompt, để lựa chọn cũ không mớm lại cho LLM.
+# Chỉ các trường quan sát được mới đưa vào prompt chặng 2. Metadata gợi ý
+# (selected_template_id, ...) không bao giờ được đưa vào prompt.
 _TIMELINE_PROMPT_FIELDS = (
     "video_id",
     "duration_seconds",

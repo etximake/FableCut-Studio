@@ -338,11 +338,6 @@ body {
   line-height: 1.5;
 }
 
-#topicOtherInput,
-#purposeOtherInput {
-  margin-top: 8px;
-}
-
 .timeline-evidence-tag {
   color: var(--text-muted);
   font-size: 11px;

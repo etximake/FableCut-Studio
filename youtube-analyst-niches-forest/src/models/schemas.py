@@ -62,13 +62,6 @@ class VisualActionTimeline(BaseModel):
     action_timeline: List[ActionBlock] = Field(default_factory=list, description="Chuỗi hành động theo mốc giây")
     final_outcome: str = Field(..., description="Kết quả hoặc trạng thái cuối cùng của chủ thể")
     evidence_signals: EvidenceSignals = Field(default_factory=EvidenceSignals, description="Tín hiệu cấu trúc quan sát được, dùng để gợi ý template")
-    recommended_skill: Optional[str] = Field(default="curiosity-explainer", description="DEPRECATED (Batch 1): Vision không còn trả trường này; giữ lại để timeline đã lưu cũ vẫn đọc được.")
-    # DEPRECATED (Batch 1): topic/video_purpose không còn dùng để quyết định hay đưa vào prompt.
-    # Giữ lại để timeline/request đã lưu cũ vẫn đọc được; code mới phải bỏ qua chúng.
-    topic: Literal["agriculture_crops", "agricultural_machinery", "mining", "other"] = "other"
-    topic_other: Optional[str] = None
-    video_purpose: Literal["explain_mechanism", "how_to", "show_process", "before_after", "troubleshoot", "other"] = "other"
-    video_purpose_other: Optional[str] = None
     selected_template_id: Optional[str] = None
     template_recommendation_reason: Optional[str] = None
     template_selection_source: Optional[Literal["manual", "recommended"]] = None
@@ -210,11 +203,6 @@ class CommentaryRequest(BaseModel):
     description_activity: Optional[str] = Field(default=None, max_length=160, description="Đang làm gì, ở đâu (không bắt buộc)")
     description_focus: Optional[str] = Field(default=None, max_length=160, description="Điểm quan trọng nhất muốn người xem hiểu (không bắt buộc)")
     narrator_mode: Optional[NarratorMode] = Field(default=None, description="Ngôi kể; None = dùng mặc định theo template")
-    # DEPRECATED (Batch 1): giữ lại để tương thích request cũ; code mới bỏ qua.
-    topic: Literal["agriculture_crops", "agricultural_machinery", "mining", "other"] = "other"
-    topic_other: Optional[str] = Field(default=None, max_length=160)
-    video_purpose: Literal["explain_mechanism", "how_to", "show_process", "before_after", "troubleshoot", "other"] = "other"
-    video_purpose_other: Optional[str] = Field(default=None, max_length=160)
     language: str = Field(default="vi", description="Ngôn ngữ lời bình (vi / en)")
     target_duration: Optional[float] = Field(default=None, description="Thời lượng mục tiêu")
     enable_tts: bool = Field(default=True, description="Tự động tạo giọng đọc Voiceover TTS")
@@ -229,11 +217,6 @@ class RewriteRequest(BaseModel):
     description_activity: Optional[str] = Field(default=None, max_length=160)
     description_focus: Optional[str] = Field(default=None, max_length=160)
     narrator_mode: Optional[NarratorMode] = Field(default=None, description="Ngôi kể; None = dùng mặc định theo template")
-    # DEPRECATED (Batch 1): giữ lại để tương thích request cũ; code mới bỏ qua.
-    topic: Literal["agriculture_crops", "agricultural_machinery", "mining", "other"] = "other"
-    topic_other: Optional[str] = Field(default=None, max_length=160)
-    video_purpose: Literal["explain_mechanism", "how_to", "show_process", "before_after", "troubleshoot", "other"] = "other"
-    video_purpose_other: Optional[str] = Field(default=None, max_length=160)
     language: Optional[str] = Field(default="vi", description="Ngôn ngữ lời bình")
     enable_tts: bool = Field(default=True, description="Tự động tạo lại giọng đọc Voiceover TTS")
     tts_voice: str = Field(default="am_adam", description="ID giọng đọc")
@@ -278,11 +261,6 @@ class GenerateCommentaryRequest(BaseModel):
     description_activity: Optional[str] = Field(default=None, max_length=160)
     description_focus: Optional[str] = Field(default=None, max_length=160)
     narrator_mode: Optional[NarratorMode] = Field(default=None, description="Ngôi kể; None = dùng mặc định theo template")
-    # DEPRECATED (Batch 1): giữ lại để tương thích request cũ; code mới bỏ qua.
-    topic: Literal["agriculture_crops", "agricultural_machinery", "mining", "other"] = "other"
-    topic_other: Optional[str] = Field(default=None, max_length=160)
-    video_purpose: Literal["explain_mechanism", "how_to", "show_process", "before_after", "troubleshoot", "other"] = "other"
-    video_purpose_other: Optional[str] = Field(default=None, max_length=160)
     language: str = "vi"
     enable_tts: bool = False
     content_only: bool = True
