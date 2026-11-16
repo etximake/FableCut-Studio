@@ -17,6 +17,11 @@ from typing import List, Optional, Tuple
 from src.models.schemas import ActionBlock, SceneRange, TimeRange, VisualActionTimeline
 
 MIN_SCENE_SECONDS = 2.0
+# Gợi ý dừng khi cảnh còn lại kém giá trị hẳn so với cảnh tốt nhất: giới hạn
+# 60s là TRẦN, không phải mục tiêu — tổng gợi ý thay đổi theo nội dung video.
+_SCORE_FLOOR_RATIO = 0.5
+_SCORE_FLOOR_MIN = 0.5
+MIN_PROPOSAL_SECONDS = 15.0
 _EPSILON = 0.01
 
 
@@ -102,10 +107,13 @@ def propose_scenes(
 ) -> List[SceneRange]:
     """Gợi ý cảnh từ timeline, tổng không vượt max_seconds.
 
-    Chọn tham lam theo điểm bằng chứng, cộng điểm kề nhau để ưu tiên mạch
-    liên tục (quan trọng với satisfying và hazard-rescue: cảnh cần bối cảnh
-    trước/sau). Block cuối có thể bị cắt ngắn cho vừa ngân sách; các block
-    còn lại giữ nguyên.
+    max_seconds là TRẦN, không phải mục tiêu: chỉ chọn block có điểm bằng
+    chứng đạt sàn (so với block tốt nhất); block yếu còn lại bị bỏ thay vì
+    nhồi cho đủ 60s. Cộng điểm kề nhau để ưu tiên mạch liên tục (quan trọng
+    với satisfying và hazard-rescue: cảnh cần bối cảnh trước/sau). Block chỉ
+    bị cắt ngắn khi vượt ngân sách; nếu tổng dưới trần thì giữ nguyên mốc
+    tự nhiên. Nếu mọi block đều yếu thì vẫn lấy đủ tối thiểu 15s để kịch
+    bản có chất liệu.
     """
     duration = timeline.duration_seconds
     if not needs_scene_selection(duration, max_seconds):
@@ -130,24 +138,46 @@ def propose_scenes(
             scores[index] += 0.15 * max(neighbors)
 
     order = sorted(range(block_count), key=lambda i: (-scores[i], blocks[i].time_range.start))
+    floor = max(_SCORE_FLOOR_MIN, _SCORE_FLOOR_RATIO * max(scores))
     picked: List[Tuple[float, float, str]] = []
-    remaining = max_seconds
-    for index in order:
-        if remaining < min_scene_seconds - _EPSILON:
-            break
+    picked_indexes: set = set()
+    remaining = [max_seconds]
+
+    def take(index: int) -> None:
         block = blocks[index]
         start = max(0.0, block.time_range.start)
         end = min(duration, block.time_range.end)
         if end - start < _EPSILON:
-            continue
-        take_end = min(end, start + remaining)
+            return
+        take_end = min(end, start + remaining[0])
         if take_end - start < min_scene_seconds - _EPSILON:
-            continue
+            return
         reason = (block.visual_action or "").strip()
         if len(reason) > 80:
             reason = reason[:77].rstrip() + "..."
         picked.append((round(start, 3), round(take_end, 3), reason))
-        remaining -= take_end - start
+        picked_indexes.add(index)
+        remaining[0] -= take_end - start
+
+    def picked_total() -> float:
+        return total_seconds([SceneRange(start=s, end=e, reason=r) for s, e, r in picked])
+
+    for index in order:
+        if remaining[0] < min_scene_seconds - _EPSILON:
+            break
+        if scores[index] < floor:
+            continue
+        take(index)
+    # Mọi block đều yếu: vẫn lấy đủ chất liệu tối thiểu.
+    if picked_total() < MIN_PROPOSAL_SECONDS:
+        for index in order:
+            if remaining[0] < min_scene_seconds - _EPSILON:
+                break
+            if index in picked_indexes:
+                continue
+            take(index)
+            if picked_total() >= MIN_PROPOSAL_SECONDS:
+                break
     if not picked:
         first = blocks[0]
         end = min(duration, first.time_range.start + max_seconds)

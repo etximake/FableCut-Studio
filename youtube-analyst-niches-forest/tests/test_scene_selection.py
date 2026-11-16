@@ -109,6 +109,27 @@ def test_proposal_respects_budget():
     assert all(scene.end > scene.start for scene in scenes)
 
 
+def test_proposal_stops_before_budget_when_remaining_blocks_are_weak():
+    # Trần 60s không phải mục tiêu: chỉ 35s đầu có bằng chứng mạnh, phần còn
+    # lại yếu thì gợi ý dừng ở 35s thay vì nhồi cho đủ 60s.
+    blocks = [
+        make_block(0.0, 20.0, "Machine clears thick brush", "Stems fall flat, dust rises, path appears", 0.95),
+        make_block(20.0, 35.0, "Blade hits a thick stump", "Stump splits, chips fly", 0.9),
+        make_block(35.0, 55.0, "Operator pauses", "", 0.3, "inferred"),
+        make_block(55.0, 75.0, "Camera pans slowly", "", 0.3, "inferred"),
+        make_block(75.0, 90.0, "Idle shot", "", 0.3, "inferred"),
+    ]
+    scenes = propose_scenes(make_timeline(duration=90.0, blocks=blocks), "how-it-works", 60.0)
+    assert total_seconds(scenes) == 35.0
+    assert scenes[0].start == 0.0 and scenes[-1].end == 35.0
+
+
+def test_proposal_keeps_minimum_when_all_blocks_are_weak():
+    blocks = [make_block(float(i * 15), float(i * 15 + 15), f"Vague {i}", "", 0.3, "inferred") for i in range(6)]
+    scenes = propose_scenes(make_timeline(duration=90.0, blocks=blocks), "how-it-works", 60.0)
+    assert total_seconds(scenes) == 15.0
+
+
 def test_before_after_keeps_first_and_last_blocks():
     scenes = propose_scenes(make_timeline(), "before-after", 60.0)
     starts = [scene.start for scene in scenes]
