@@ -591,7 +591,10 @@ def process_video(request: CommentaryRequest):
     visual_timeline.template_recommendation_reason = template_recommendation.reason
     visual_timeline.template_selection_source = template_recommendation.source
     db.save_visual_timeline(visual_timeline)
-    script_review_notes = commentary_engine.validate_generated_script(capcut_script)
+    script_review_notes = list(dict.fromkeys([
+        *capcut_script.review_notes,
+        *commentary_engine.validate_generated_script(capcut_script),
+    ]))
     scene_review_notes = [scene_note] if scene_note else []
     return ProcessVideoResponse(
         status="SUCCESS",
@@ -683,7 +686,10 @@ def generate_script_from_saved_analysis(request: GenerateCommentaryRequest):
             narrator_mode=request.narrator_mode,
             scene_note=scene_note or None,
         )
-        notes = commentary_engine.validate_generated_script(script)
+        notes = list(dict.fromkeys([
+            *script.review_notes,
+            *commentary_engine.validate_generated_script(script),
+        ]))
         qa_metadata = {"template_id": recommendation.template_id, "template_source": recommendation.source, "template_version": "1.1.0", "narrator_mode": narrator_mode, "target_feeling": target_feeling, "prompt_version": "simplified-batch1-v1", "model": settings.DEFAULT_TEXT_MODEL, "warnings_count": len(notes), "scenes_applied": [scene.model_dump() for scene in scenes_applied], "original_duration_seconds": full_timeline.duration_seconds}
         if request.content_only:
             return CommentaryGenerationResponse(
@@ -887,7 +893,10 @@ def rewrite_commentary(request: RewriteRequest):
         db.save_commentary_script(new_script)
         export_result = exporter.export(new_script, audio_path=audio_file_path)
         cleanup_video_temp_files(request.video_id, audio_path=audio_file_path, export_result=export_result)
-        review_notes = commentary_engine.validate_generated_script(new_script)
+        review_notes = list(dict.fromkeys([
+            *new_script.review_notes,
+            *commentary_engine.validate_generated_script(new_script),
+        ]))
         scene_note = _build_scene_note(visual_timeline.duration_seconds, scenes_applied)
         if scene_note:
             review_notes = [scene_note] + review_notes

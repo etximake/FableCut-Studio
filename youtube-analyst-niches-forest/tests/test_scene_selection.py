@@ -216,6 +216,63 @@ def test_concat_scenes_silent_video(tmp_path):
     assert info["has_audio"] is False
 
 
+# --- engine: duration enforcement ------------------------------------------
+
+def test_generate_commentary_clamps_segments_to_duration(monkeypatch):
+    engine = CommentaryScriptEngine()
+
+    def fake_llm(api_key, base_url, model, system_prompt, user_prompt):
+        script = make_script(duration=30.0)
+        dumped = script.model_dump()
+        dumped["segments"] = [
+            {
+                "beat": "HOOK",
+                "time_range": {"start": 0.0, "end": 20.0},
+                "voiceover": "Watch this machine clear brush fast.",
+                "voiceover_vi_translation": "",
+                "text_overlay": {"text": "CLEARS BRUSH", "position": "TOP_CENTER", "style": "HIGHLIGHT_YELLOW"},
+                "sfx_cue": None,
+            },
+            {
+                "beat": "CLIMAX",
+                "time_range": {"start": 20.0, "end": 45.0},
+                "voiceover": "It keeps cutting beyond the limit.",
+                "voiceover_vi_translation": "",
+                "text_overlay": {"text": "KEEPS CUTTING", "position": "TOP_CENTER", "style": "HIGHLIGHT_YELLOW"},
+                "sfx_cue": None,
+            },
+            {
+                "beat": "PAYOFF",
+                "time_range": {"start": 45.0, "end": 75.0},
+                "voiceover": "This part should be dropped entirely.",
+                "voiceover_vi_translation": "",
+                "text_overlay": {"text": "DROPPED", "position": "TOP_CENTER", "style": "HIGHLIGHT_YELLOW"},
+                "sfx_cue": None,
+            },
+        ]
+        return dumped
+
+    monkeypatch.setattr(engine, "_call_text_llm", fake_llm)
+    result = engine.generate_commentary(
+        make_timeline(duration=30.0, blocks=[make_block(0.0, 30.0)]),
+        skill_id="curiosity-explainer",
+        language="en",
+        target_duration=30.0,
+    )
+    assert [(s.time_range.start, s.time_range.end) for s in result.segments] == [(0.0, 20.0), (20.0, 30.0)]
+    assert any("đã cắt mốc kết thúc" in note for note in result.review_notes)
+    assert any("đã bỏ" in note for note in result.review_notes)
+
+
+def test_validate_generated_script_warns_on_word_budget_overflow():
+    engine = CommentaryScriptEngine()
+    script = make_script(duration=30.0)
+    script.segments[0].voiceover = " ".join(["word"] * 100)
+    notes = engine.validate_generated_script(script, word_budget=60)
+    assert any("vượt ngân sách 60 từ" in note for note in notes)
+    assert engine.validate_generated_script(script, word_budget=200) == []
+
+
 # --- engine: scene note + forced duration ---------------------------------
 
 def test_generate_commentary_uses_scene_note_and_active_duration(monkeypatch):

@@ -233,7 +233,46 @@ class CommentaryScriptEngine:
             parts.append(f"Kết quả cuối: {timeline.final_outcome}.")
         return " ".join(parts)
 
-    def validate_generated_script(self, script: CapCutCommentaryInterchange) -> list[str]:
+    def enforce_script_duration(
+        self, script: CapCutCommentaryInterchange, duration: float
+    ) -> list[str]:
+        """Clamp segment times to [0, duration]; never silently extend a Short.
+
+        The LLM is told the duration and word budget, but it still overshoots
+        segment ends. Anything past the duration is cut (last segment clipped,
+        later segments dropped) and reported in a review note, so the exported
+        JSON always fits the video instead of failing downstream or producing
+        a longer video. Voiceover text is untouched; TTS re-times segments by
+        actual speech when it runs.
+        """
+        notes: list[str] = []
+        kept = []
+        for segment in script.segments:
+            start = max(0.0, segment.time_range.start)
+            end = min(segment.time_range.end, duration)
+            if start >= duration - 0.01 or end - start < 0.01:
+                notes.append(
+                    f"Beat {segment.beat} nằm ngoài thời lượng {duration:.1f}s nên đã bỏ."
+                )
+                continue
+            if segment.time_range.end > duration + 0.01:
+                notes.append(
+                    f"Beat {segment.beat} vượt {duration:.1f}s nên đã cắt mốc kết thúc "
+                    f"từ {segment.time_range.end:.1f}s về {duration:.1f}s."
+                )
+            segment.time_range.start = round(start, 3)
+            segment.time_range.end = round(end, 3)
+            kept.append(segment)
+        script.segments = kept
+        if not kept:
+            notes.append("Kịch bản không còn beat nào trong thời lượng video; cần tạo lại.")
+        return notes
+
+    def validate_generated_script(
+        self,
+        script: CapCutCommentaryInterchange,
+        word_budget: Optional[int] = None,
+    ) -> list[str]:
         """Return review notes for deterministic issues; never silently rewrite generated copy."""
         notes = []
         segments = script.segments
@@ -259,6 +298,13 @@ class CommentaryScriptEngine:
         normalized = [" ".join(s.voiceover.lower().split()) for s in segments]
         if len(normalized) != len(set(normalized)):
             notes.append("Có câu lời bình trùng lặp giữa các beat.")
+        if word_budget:
+            total_words = sum(len(s.voiceover.split()) for s in segments)
+            if total_words > word_budget * 1.05:
+                notes.append(
+                    f"Lời bình dài {total_words} từ, vượt ngân sách {word_budget} từ cho "
+                    f"{expected:.1f}s; giọng đọc có thể bị cắt cụt ở cuối. Hãy viết lại ngắn hơn."
+                )
         unsupported_claim_markers = ("năng suất", "tăng gấp", "tăng trưởng", "khoảng cách", "nguyên nhân", "giúp tiết kiệm", "lợi nhuận", "%")
         for index, segment in enumerate(segments):
             text = segment.voiceover.lower()
@@ -377,5 +423,8 @@ class CommentaryScriptEngine:
             raw_result["video_metadata"]["template_version"] = raw_result["template_version"]
 
         result = CapCutCommentaryInterchange(**raw_result)
-        result.review_notes = self.validate_generated_script(result)
+        enforcement_notes = self.enforce_script_duration(result, duration)
+        result.review_notes = enforcement_notes + self.validate_generated_script(
+            result, word_budget=word_budget
+        )
         return result
