@@ -183,6 +183,23 @@ class CapCutCommentaryInterchange(BaseModel):
 # 4. API REQUEST / RESPONSE MODELS
 # ==========================================
 
+class AnalyzeRequest(BaseModel):
+    """Bước 1 của luồng 2 bước (Batch 2): chỉ phân tích, không viết kịch bản."""
+    video_url: Optional[str] = Field(default=None, description="URL video YouTube / TikTok")
+    video_path: Optional[str] = Field(default=None, description="Đường dẫn file video cục bộ")
+
+
+class AnalyzeResponse(BaseModel):
+    status: Literal["SUCCESS"] = "SUCCESS"
+    video_id: str
+    contact_sheet_url: Optional[str] = Field(default=None, description="URL ảnh lưới 3x3 xem trước")
+    audio_hint: Optional[AudioHint] = Field(default=None, description="Thông tin bóc tách âm thanh")
+    visual_timeline: VisualActionTimeline
+    template_recommendation: TemplateRecommendation
+    narrator_mode: str
+    target_feeling: str
+
+
 class CommentaryRequest(BaseModel):
     video_url: Optional[str] = Field(default=None, description="URL video YouTube / TikTok")
     video_path: Optional[str] = Field(default=None, description="Đường dẫn file video cục bộ")

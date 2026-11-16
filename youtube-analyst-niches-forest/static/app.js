@@ -5,6 +5,10 @@ let currentSelectedFile = null;
 let currentResult = null;
 let currentPlayingSfxBtn = null;
 let modelTestResultTimeout = null;
+// Batch 2: trạng thái luồng 2 bước
+let templateRegistry = [];
+let currentAnalysis = null;
+let selectedTemplateId = null;
 // SPEC-01: theo dõi bản sửa chưa lưu trong giao diện review
 let isScriptDirty = false;
 let lastSavedAt = null;
@@ -30,21 +34,85 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 async function fetchTemplates() {
-  const select = document.getElementById("templateSelect");
-  if (!select) return;
   try {
     const response = await fetch("/api/v1/templates");
     const data = await response.json();
-    (data.templates || []).forEach(template => {
-      const option = document.createElement("option");
-      option.value = template.template_id;
-      option.textContent = template.name_vi || template.name_en || template.template_id;
-      select.appendChild(option);
-    });
-    select.addEventListener("change", updateTemplateHint);
-    const recommendation = currentResult?.template_recommendation || currentResult?.capcut_json?.template_recommendation;
-    if (recommendation?.template_id && !select.value) select.value = recommendation.template_id;
+    templateRegistry = data.templates || [];
   } catch (error) { console.warn("Template registry unavailable", error); }
+}
+
+// Nhãn cảm giác mục tiêu theo template (server trả target_feeling, đây chỉ là nhãn hiển thị).
+const FEELING_LABELS = {
+  curiosity: "Thu hút / tò mò",
+  satisfaction: "Thỏa mãn",
+  understanding: "Hiểu ra"
+};
+
+// Tín hiệu bắt buộc của từng template, mirror của _TEMPLATE_REQUIRED_SIGNAL
+// trong src/analyzer/commentary_engine.py — chỉ dùng để cảnh báo trên giao diện.
+const TEMPLATE_REQUIRED_SIGNAL = {
+  "before-after": "has_transformation",
+  "hazard-rescue": "has_hazard_or_breakdown",
+  "shock-hook": "has_surprising_fact",
+  "satisfying": "process_is_main_appeal",
+  "story": "has_person_story"
+};
+
+const SIGNAL_LABELS = {
+  has_transformation: "khác biệt trước–sau rõ rệt",
+  has_hazard_or_breakdown: "sự cố/hỏng hóc/nguy hiểm",
+  has_surprising_fact: "con số/sự thật gây ngạc nhiên",
+  has_distinct_steps: "các bước/thao tác phân biệt được",
+  has_person_story: "nhân vật trung tâm và câu chuyện của người đó",
+  process_is_main_appeal: "quy trình tự thân đã hấp dẫn"
+};
+
+function renderTemplateCards() {
+  const container = document.getElementById("templateCards");
+  if (!container) return;
+  container.innerHTML = "";
+  const suggestedId = currentAnalysis?.template_recommendation?.template_id;
+  templateRegistry.forEach(template => {
+    const card = document.createElement("div");
+    card.className = `template-card ${template.template_id === selectedTemplateId ? "active" : ""}`;
+    card.dataset.templateId = template.template_id;
+    card.onclick = () => selectTemplate(template.template_id);
+    const feeling = FEELING_LABELS[template.target_feeling] || template.target_feeling || "";
+    const suggestedBadge = template.template_id === suggestedId ? '<span class="template-suggested-badge">★ AI gợi ý</span>' : "";
+    const bestFor = (template.best_for || []).join(" · ");
+    card.innerHTML = `
+      <div class="template-card-top">
+        <span class="template-card-title">${escapeHtml(template.name_vi || template.name_en || template.template_id)}${suggestedBadge}</span>
+        <span class="template-card-feeling">${escapeHtml(feeling)}</span>
+      </div>
+      <div class="template-card-desc">${escapeHtml(template.purpose || "")}${bestFor ? `<br>Hợp với: ${escapeHtml(bestFor)}` : ""}</div>
+    `;
+    container.appendChild(card);
+  });
+  updateTemplateWarning();
+}
+
+function selectTemplate(templateId) {
+  selectedTemplateId = templateId;
+  document.querySelectorAll(".template-card").forEach(c => {
+    c.classList.toggle("active", c.dataset.templateId === templateId);
+  });
+  updateTemplateHint(currentAnalysis?.template_recommendation);
+  updateTemplateWarning();
+}
+
+function updateTemplateWarning() {
+  const warning = document.getElementById("templateWarning");
+  if (!warning) return;
+  const signals = currentAnalysis?.visual_timeline?.evidence_signals || {};
+  const required = TEMPLATE_REQUIRED_SIGNAL[selectedTemplateId];
+  if (required && !signals[required]) {
+    warning.hidden = false;
+    warning.textContent = `Lưu ý: timeline chưa cho thấy ${SIGNAL_LABELS[required]} mà template này cần. Bạn vẫn có thể tiếp tục nếu chắc chắn.`;
+  } else {
+    warning.hidden = true;
+    warning.textContent = "";
+  }
 }
 
 // Fetch TTS Voices
@@ -134,22 +202,17 @@ async function fetchAiStatus() {
   }
 }
 
-function toggleOtherInput(selectId, inputId) {
-  const select = document.getElementById(selectId);
-  const input = document.getElementById(inputId);
-  if (select && input) input.hidden = select.value !== "other";
-}
-
 function updateTemplateHint(recommendation = null) {
   const note = document.getElementById("templateRecommendationNote");
-  const selectedTemplate = document.getElementById("templateSelect")?.value;
   if (!note) return;
-  if (selectedTemplate) {
-    note.textContent = `Template ${selectedTemplate} được chọn thủ công và sẽ được ưu tiên.`;
+  if (selectedTemplateId && recommendation && selectedTemplateId !== recommendation.template_id) {
+    note.textContent = `Bạn đã chọn template ${selectedTemplateId} (AI gợi ý ${recommendation.template_id}). ${recommendation.reason || ""}`;
   } else if (recommendation?.reason) {
     note.textContent = `Gợi ý: ${recommendation.template_id}. ${recommendation.reason}`;
+  } else if (selectedTemplateId) {
+    note.textContent = `Template đã chọn: ${selectedTemplateId}.`;
   } else {
-    note.textContent = "Chọn chủ đề và mục đích; hệ thống sẽ gợi ý template sau khi phân tích.";
+    note.textContent = "Hệ thống sẽ gợi ý template sau khi phân tích xong.";
   }
 }
 
@@ -303,11 +366,10 @@ function handleFileSelected(files) {
   nameDisplay.innerText = `Đã chọn: ${currentSelectedFile.name} (${(currentSelectedFile.size / (1024 * 1024)).toFixed(1)} MB)`;
 }
 
-// Submit Process Video
-async function submitVideoProcess() {
-  const btn = document.getElementById("btnProcess");
-  const btnText = document.getElementById("btnProcessText");
-  const language = document.getElementById("languageSelect").value;
+// Batch 2 — Bước 1: phân tích video (Vision mù), chưa viết kịch bản.
+async function analyzeVideo() {
+  const btn = document.getElementById("btnAnalyze");
+  const btnText = document.getElementById("btnAnalyzeText");
 
   let videoUrl = null;
   let videoPath = null;
@@ -318,19 +380,15 @@ async function submitVideoProcess() {
       alert("Vui lòng nhập link video YouTube Shorts, TikTok hoặc Reels!");
       return;
     }
-  } else {
-    if (!currentSelectedFile) {
-      alert("Vui lòng chọn hoặc kéo thả 1 file video MP4!");
-      return;
-    }
+  } else if (!currentSelectedFile) {
+    alert("Vui lòng chọn hoặc kéo thả 1 file video MP4!");
+    return;
   }
 
-  // Set Loading State
   btn.disabled = true;
   btnText.innerHTML = '<span class="spinner"></span> Đang tạo Contact Sheet & Lập Timeline...';
 
   try {
-    // Nếu là file, upload lên server trước
     if (currentInputMode === "file" && currentSelectedFile) {
       btnText.innerHTML = '<span class="spinner"></span> Đang tải video lên server...';
       const formData = new FormData();
@@ -344,44 +402,40 @@ async function submitVideoProcess() {
       videoPath = uploadData.video_path;
     }
 
-    btnText.innerHTML = '<span class="spinner"></span> AI đang quan sát ảnh lưới, biên kịch & thu âm...';
+    btnText.innerHTML = '<span class="spinner"></span> AI đang quan sát ảnh lưới...';
 
-    const enableTts = document.getElementById("ttsToggle").checked;
-    const ttsVoice = document.getElementById("ttsVoiceSelect").value;
-    const ttsSpeed = parseFloat(document.getElementById("ttsSpeedRange").value) || 1.0;
-
-    const payload = {
-      video_url: videoUrl,
-      video_path: videoPath,
-      skill_id: currentSelectedSkill,
-      template_id: document.getElementById("templateSelect")?.value || null,
-      topic: document.getElementById("topicSelect")?.value || "other",
-      topic_other: document.getElementById("topicOtherInput")?.value.trim() || null,
-      video_purpose: document.getElementById("purposeSelect")?.value || "other",
-      video_purpose_other: document.getElementById("purposeOtherInput")?.value.trim() || null,
-      language: language,
-      enable_tts: enableTts,
-      tts_voice: ttsVoice,
-      tts_speed: ttsSpeed
-    };
-
-    const res = await fetch("/api/v1/commentary/process-video", {
+    const res = await fetch("/api/v1/commentary/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ video_url: videoUrl, video_path: videoPath })
     });
 
     if (!res.ok) {
       const errData = await res.json();
-      throw new Error(errData.detail || "Xử lý video thất bại.");
+      throw new Error(errData.detail || "Phân tích video thất bại.");
     }
 
     const data = await res.json();
+    currentAnalysis = data;
     currentResult = data;
-    updateTemplateHint(data.template_recommendation);
+    selectedTemplateId = data.template_recommendation?.template_id || null;
     lastSavedAt = null;
-    renderFullResult(data);
-    showToast("Phân tích và tạo kịch bản CapCut thành công!");
+    isScriptDirty = false;
+
+    const narratorSelect = document.getElementById("narratorSelect");
+    if (narratorSelect && data.narrator_mode) narratorSelect.value = data.narrator_mode;
+
+    renderAnalysisResult(data);
+    renderTemplateCards();
+    updateTemplateHint(data.template_recommendation);
+    document.getElementById("step2Section").style.display = "block";
+    // Xóa kịch bản cũ khỏi cột biên tập: video mới chưa có kịch bản.
+    document.getElementById("segmentsList").innerHTML = '<div class="empty-placeholder">Xem timeline ở cột giữa, chốt template ở cột trái, rồi bấm "Viết kịch bản".</div>';
+    document.getElementById("metaDuration").innerText = `${Math.round(data.visual_timeline.duration_seconds || 0)}s`;
+    document.getElementById("metaTotalWords").innerText = "0";
+    document.getElementById("metaWpm").innerText = "0 WPM";
+    document.getElementById("voiceoverPlayerBox").style.display = "none";
+    showToast("Phân tích xong! Xem timeline rồi chốt template ở bước 2.");
 
   } catch (err) {
     let msg = err.message || "Đã xảy ra lỗi không xác định.";
@@ -391,16 +445,108 @@ async function submitVideoProcess() {
     alert("❌ Lỗi: " + msg);
   } finally {
     btn.disabled = false;
-    btnText.innerText = "Phân tích & Viết Lời bình";
+    btnText.innerText = "Bước 1: Phân tích video";
   }
 }
 
-// Render Full Results
-function renderFullResult(data) {
-  const recommendation = data.template_recommendation || data.capcut_json?.template_recommendation;
-  updateTemplateHint(recommendation);
+function getDescriptionPayload() {
+  return {
+    description_subject: document.getElementById("descriptionSubjectInput")?.value.trim() || null,
+    description_activity: document.getElementById("descriptionActivityInput")?.value.trim() || null,
+    description_focus: document.getElementById("descriptionFocusInput")?.value.trim() || null
+  };
+}
+
+// Batch 2 — Bước 2: viết kịch bản theo template đã chốt.
+async function generateScriptFromAnalysis() {
+  if (!currentAnalysis || !currentAnalysis.video_id) {
+    alert("Vui lòng phân tích 1 video ở bước 1 trước!");
+    return;
+  }
+
+  // Viết lại thay toàn bộ kịch bản, hỏi trước khi làm mất bản sửa chưa lưu.
+  if (isScriptDirty && !confirm("Bạn có thay đổi chưa lưu. Viết kịch bản mới sẽ thay toàn bộ kịch bản và mất các sửa đổi. Tiếp tục?")) {
+    return;
+  }
+
+  const btn = document.getElementById("btnGenerateScript");
+  const btnText = document.getElementById("btnGenerateScriptText");
+  const language = document.getElementById("languageSelect").value;
+  const enableTts = document.getElementById("ttsToggle").checked;
+  const ttsVoice = document.getElementById("ttsVoiceSelect").value;
+  const ttsSpeed = parseFloat(document.getElementById("ttsSpeedRange").value) || 1.0;
+
+  btn.disabled = true;
+  btnText.innerHTML = '<span class="spinner"></span> AI đang viết kịch bản...';
+
+  try {
+    const res = await fetch("/api/v1/commentary/generate-script", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        video_id: currentAnalysis.video_id,
+        skill_id: currentSelectedSkill,
+        template_id: selectedTemplateId,
+        ...getDescriptionPayload(),
+        narrator_mode: document.getElementById("narratorSelect")?.value || null,
+        language: language,
+        enable_tts: enableTts,
+        tts_voice: ttsVoice,
+        tts_speed: ttsSpeed,
+        content_only: false
+      })
+    });
+
+    if (!res.ok) {
+      const errData = await res.json();
+      throw new Error(errData.detail || "Viết kịch bản thất bại.");
+    }
+
+    const data = await res.json();
+    currentResult.capcut_json = data.capcut_json;
+    currentResult.template_recommendation = data.template_recommendation;
+    currentResult.review_notes = data.review_notes || [];
+    currentResult.story_angle = data.story_angle;
+    lastSavedAt = null;
+    renderCommentarySegments(data.capcut_json);
+
+    const notes = document.getElementById("reviewNotes");
+    if (notes) {
+      const items = [
+        ...(data.story_angle ? [`Góc kể: ${data.story_angle}`] : []),
+        ...(data.template_recommendation?.reason ? [`${data.template_recommendation.source === "manual" ? "Template người dùng chọn" : "Lý do gợi ý template"}: ${data.template_recommendation.reason}`] : []),
+        ...(data.review_notes || [])
+      ];
+      notes.hidden = items.length === 0;
+      notes.innerHTML = items.map(item => `<p>${escapeHtml(item)}</p>`).join("");
+    }
+
+    const playerBox = document.getElementById("voiceoverPlayerBox");
+    const audioPlayer = document.getElementById("voiceoverAudioPlayer");
+    const voiceBadge = document.getElementById("voiceNameBadge");
+    if (enableTts) {
+      playerBox.style.display = "block";
+      audioPlayer.src = `/api/v1/commentary/${currentAnalysis.video_id}/audio?t=${Date.now()}`;
+      const selectedVoiceOpt = document.getElementById("ttsVoiceSelect");
+      const voiceText = selectedVoiceOpt ? selectedVoiceOpt.options[selectedVoiceOpt.selectedIndex].text : "AI Voice";
+      voiceBadge.innerText = voiceText.replace(/[🌾🎬🌿🎙️📖📻⚡]/g, "").trim();
+    } else {
+      playerBox.style.display = "none";
+    }
+
+    showToast("Đã viết kịch bản theo template đã chốt!");
+  } catch (err) {
+    alert("❌ Lỗi: " + (err.message || "Đã xảy ra lỗi không xác định."));
+  } finally {
+    btn.disabled = false;
+    btnText.innerText = "Viết kịch bản theo template đã chốt";
+  }
+}
+
+// Render kết quả phân tích (bước 1): contact sheet, âm thanh, timeline, ghi chú.
+function renderAnalysisResult(data) {
+  const recommendation = data.template_recommendation;
   // 1. Render Contact Sheet 3x3
-  const imgBox = document.getElementById("contactSheetBox");
   const img = document.getElementById("contactSheetImg");
   const placeholder = document.getElementById("contactSheetPlaceholder");
 
@@ -463,27 +609,12 @@ function renderFullResult(data) {
 
   const notes = document.getElementById("reviewNotes");
   if (notes) {
-    const items = [...(data.story_angle || data.capcut_json?.story_angle ? [`Góc kể: ${data.story_angle || data.capcut_json?.story_angle}`] : []), ...(recommendation?.reason ? [`${recommendation.source === "manual" ? "Template người dùng chọn" : "Lý do gợi ý template"}: ${recommendation.reason}`] : []), ...(data.review_notes || data.capcut_json?.review_notes || [])];
+    const items = [
+      ...(recommendation?.reason ? [`Lý do gợi ý template: ${recommendation.reason}`] : []),
+      ...(data.review_notes || [])
+    ];
     notes.hidden = items.length === 0;
     notes.innerHTML = items.map(item => `<p>${escapeHtml(item)}</p>`).join("");
-  }
-
-  // 4. Render Commentary Studio
-  renderCommentarySegments(data.capcut_json);
-
-  // 5. Render Voiceover Audio Player nếu có
-  const playerBox = document.getElementById("voiceoverPlayerBox");
-  const audioPlayer = document.getElementById("voiceoverAudioPlayer");
-  const voiceBadge = document.getElementById("voiceNameBadge");
-
-  if (data.voiceover_audio_url) {
-    playerBox.style.display = "block";
-    audioPlayer.src = `${data.voiceover_audio_url}?t=${Date.now()}`;
-    const selectedVoiceOpt = document.getElementById("ttsVoiceSelect");
-    const voiceText = selectedVoiceOpt ? selectedVoiceOpt.options[selectedVoiceOpt.selectedIndex].text : "AI Voice";
-    voiceBadge.innerText = voiceText.replace(/[🌾🎬🌿🎙️📖📻⚡]/g, "").trim();
-  } else {
-    playerBox.style.display = "none";
   }
 }
 
@@ -769,11 +900,9 @@ async function handleQuickRewrite() {
       body: JSON.stringify({
         video_id: currentResult.video_id,
         skill_id: currentSelectedSkill,
-        template_id: document.getElementById("templateSelect")?.value || null,
-        topic: document.getElementById("topicSelect")?.value || "other",
-        topic_other: document.getElementById("topicOtherInput")?.value.trim() || null,
-        video_purpose: document.getElementById("purposeSelect")?.value || "other",
-        video_purpose_other: document.getElementById("purposeOtherInput")?.value.trim() || null,
+        template_id: selectedTemplateId,
+        ...getDescriptionPayload(),
+        narrator_mode: document.getElementById("narratorSelect")?.value || null,
         language: language,
         enable_tts: enableTts,
         tts_voice: ttsVoice,

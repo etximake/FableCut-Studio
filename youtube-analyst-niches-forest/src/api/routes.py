@@ -13,6 +13,8 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from src.core.config import settings
 from src.models.schemas import (
+    AnalyzeRequest,
+    AnalyzeResponse,
     CommentaryRequest,
     RewriteRequest,
     TTSSynthesizeRequest,
@@ -30,7 +32,7 @@ from src.models.schemas import (
 )
 from src.preprocessor.video_preprocessor import LocalVideoPreprocessor
 from src.analyzer.vision_engine import VisionActionEngine
-from src.analyzer.commentary_engine import CommentaryScriptEngine
+from src.analyzer.commentary_engine import CommentaryScriptEngine, TEMPLATE_VOICE_DEFAULTS
 from src.exporter.capcut import CapCutExporter, ExportResult, validate_interchange
 from src.storage.db import db
 from src.skills.registry import registry
@@ -47,8 +49,19 @@ TEMPLATE_REGISTRY = Path(__file__).resolve().parents[3] / "fablecut-bundle" / "p
 def list_templates():
     if TEMPLATE_REGISTRY.is_file():
         with TEMPLATE_REGISTRY.open("r", encoding="utf-8") as registry_file:
-            return json.load(registry_file)
-    return {"registry_version": "1.1.0", "templates": [{"template_id": t, "name_en": t.replace("-", " ").title()} for t in ("hazard-rescue", "shock-hook", "how-it-works", "satisfying", "before-after", "story")]}
+            registry_data = json.load(registry_file)
+    else:
+        registry_data = {"registry_version": "1.1.0", "templates": [{"template_id": t, "name_en": t.replace("-", " ").title()} for t in ("hazard-rescue", "shock-hook", "how-it-works", "satisfying", "before-after", "story")]}
+    # Enrich each entry with the narrator default + target feeling from the
+    # single source of truth (TEMPLATE_VOICE_DEFAULTS), so template cards in
+    # the UI show the feeling each template is designed to create.
+    for entry in registry_data.get("templates", []):
+        default_mode, feeling, _rule = TEMPLATE_VOICE_DEFAULTS.get(
+            entry.get("template_id"), ("third_person", "understanding", "")
+        )
+        entry["narrator_mode"] = default_mode
+        entry["target_feeling"] = feeling
+    return registry_data
 
 preprocessor = LocalVideoPreprocessor()
 vision_engine = VisionActionEngine()
@@ -262,14 +275,67 @@ async def get_sfx_catalog():
             return json.load(f)
     return {"items": []}
 
-@router.post("/commentary/process-video", response_model=ProcessVideoResponse)
+@router.post("/commentary/analyze", response_model=AnalyzeResponse)
+def analyze_video(request: AnalyzeRequest):
+    """Bước 1 của luồng 2 bước (Batch 2): tiền xử lý + Vision mù + gợi ý template.
+
+    Không sinh kịch bản, không TTS, không export. Người dùng xem timeline và
+    chốt template ở bước 2 rồi mới gọi /commentary/generate-script.
+    """
+    video_path = request.video_path
+    if request.video_url:
+        try:
+            video_path = downloader.download_video(request.video_url)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Lỗi tải video từ URL: {str(e)}")
+
+    if not video_path or not Path(video_path).exists():
+        raise HTTPException(status_code=400, detail="Vui lòng cung cấp file video hoặc video_url hợp lệ.")
+
+    video_id = Path(video_path).stem
+    logger.info(f"Analyzing video: {video_id} ({video_path})")
+
+    try:
+        contact_sheet_path, audio_hint, duration = preprocessor.process(video_path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi tiền xử lý video cục bộ: {str(e)}")
+
+    try:
+        visual_timeline = vision_engine.extract_visual_timeline(
+            video_id=video_id,
+            contact_sheet_path=contact_sheet_path,
+            audio_hint=audio_hint,
+            duration_seconds=duration,
+        )
+        db.save_visual_timeline(visual_timeline)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi phân tích thị giác Chặng 1: {str(e)}")
+
+    recommendation = commentary_engine.recommend_template(visual_timeline)
+    narrator_mode, target_feeling, _feeling_rule = commentary_engine.resolve_narrator_and_feeling(
+        recommendation.template_id
+    )
+    visual_timeline.selected_template_id = recommendation.template_id
+    visual_timeline.template_recommendation_reason = recommendation.reason
+    visual_timeline.template_selection_source = recommendation.source
+    db.save_visual_timeline(visual_timeline)
+    return AnalyzeResponse(
+        video_id=video_id,
+        contact_sheet_url=f"/api/v1/images/contact-sheet/{video_id}",
+        audio_hint=audio_hint,
+        visual_timeline=visual_timeline,
+        template_recommendation=recommendation,
+        narrator_mode=narrator_mode,
+        target_feeling=target_feeling,
+    )
+
+
+@router.post("/commentary/process-video", response_model=ProcessVideoResponse, deprecated=True)
 def process_video(request: CommentaryRequest):
     """
-    Quy trình xử lý video toàn diện (chạy trong worker threadpool để không block event loop):
-    1. Tải video (nếu là URL) hoặc lấy file cục bộ
-    2. Chạy Local Preprocessor (Contact sheet 3x3 + Audio VAD)
-    3. Chặng 1: Vision Action Extractor (sinh Visual Timeline)
-    4. Chặng 2: Commentary Scriptwriter (sinh CapCut JSON v3)
+    DEPRECATED (Batch 2): luồng 1 nút chạy hết (phân tích + kịch bản + TTS + export).
+    Giao diện mới dùng 2 bước: POST /commentary/analyze rồi POST /commentary/generate-script.
+    Endpoint này giữ lại để tương thích API cũ, không thêm tính năng mới.
     """
     video_path = request.video_path
     if request.video_url:

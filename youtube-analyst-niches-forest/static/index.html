@@ -41,7 +41,7 @@
       <div class="panel-header">
         <div class="panel-title">
           <span class="workflow-step">01</span>
-          <span><span>⚙️ Đầu vào & Persona</span><small>Chọn nguồn video và cấu hình nội dung</small></span>
+          <span><span>⚙️ Bước 1: Video & mô tả</span><small>Tải video, mô tả ngắn (không bắt buộc), rồi phân tích</small></span>
         </div>
       </div>
       <div class="panel-body">
@@ -78,34 +78,37 @@
           </div>
         </div>
 
+        <!-- Mô tả của người dùng: chỉ dùng ở bước 2, không đưa vào Vision -->
         <div class="form-group">
-          <label class="form-label" for="topicSelect">Chủ đề video:</label>
-          <select id="topicSelect" class="form-control" onchange="toggleOtherInput('topicSelect', 'topicOtherInput')">
-            <option value="agriculture_crops">Nông nghiệp / cây trồng</option>
-            <option value="agricultural_machinery">Máy móc nông nghiệp</option>
-            <option value="mining">Đào mỏ</option>
-            <option value="other">Khác</option>
-          </select>
-          <input id="topicOtherInput" class="form-control" maxlength="160" placeholder="Nhập chủ đề khác (không bắt buộc)" hidden />
+          <label class="form-label" for="descriptionSubjectInput">Mô tả video (không bắt buộc, chỉ viết điều bạn chắc chắn):</label>
+          <input id="descriptionSubjectInput" class="form-control" maxlength="160" placeholder="Máy/vật chính là gì? Ví dụ: máy cắt cỏ cầm tay" />
+          <input id="descriptionActivityInput" class="form-control" maxlength="160" placeholder="Đang làm gì, ở đâu? Ví dụ: đang dọn bụi rậm ở bờ ruộng" style="margin-top: 6px;" />
+          <input id="descriptionFocusInput" class="form-control" maxlength="160" placeholder="Điểm quan trọng nhất muốn người xem hiểu? Ví dụ: lưỡi cắt thay được trong 30 giây" style="margin-top: 6px;" />
+          <p class="form-hint">Mô tả chỉ bổ sung bối cảnh không nhìn thấy được (tên máy, địa điểm). Nếu mâu thuẫn với hình ảnh, hình ảnh thắng.</p>
         </div>
 
-        <div class="form-group">
-          <label class="form-label" for="purposeSelect">Mục đích video:</label>
-          <select id="purposeSelect" class="form-control" onchange="toggleOtherInput('purposeSelect', 'purposeOtherInput')">
-            <option value="explain_mechanism">Giải thích cơ chế</option>
-            <option value="how_to">Hướng dẫn / thực hành</option>
-            <option value="show_process">Cho xem quy trình vận hành</option>
-            <option value="before_after">Kết quả trước – sau</option>
-            <option value="troubleshoot">Sự cố và cách xử lý</option>
-            <option value="other">Khác</option>
-          </select>
-          <input id="purposeOtherInput" class="form-control" maxlength="160" placeholder="Nhập mục đích khác (không bắt buộc)" hidden />
-        </div>
+        <!-- Bước 2: chốt template + ngôi kể (hiện sau khi phân tích xong) -->
+        <div id="step2Section" style="display: none;">
+          <div class="form-group">
+            <label class="form-label">Bước 2: Chốt template dựng (AI gợi ý, bạn quyết định):</label>
+            <p id="templateRecommendationNote" class="form-hint" aria-live="polite"></p>
+            <div class="template-cards" id="templateCards"></div>
+            <p id="templateWarning" class="template-warning" aria-live="polite" hidden></p>
+          </div>
 
-        <div class="form-group">
-          <label class="form-label" for="templateSelect">Template dựng:</label>
-          <select id="templateSelect" class="form-control"><option value="">Tự động theo Skill</option></select>
-          <p id="templateRecommendationNote" class="form-hint" aria-live="polite">Chọn chủ đề và mục đích; hệ thống sẽ gợi ý template sau khi phân tích.</p>
+          <div class="form-group">
+            <label class="form-label" for="narratorSelect">Ngôi kể lời bình:</label>
+            <select id="narratorSelect" class="form-control">
+              <option value="third_person">Ngôi 3 khách quan (mặc định)</option>
+              <option value="second_person_hook">Ngôi 2 ở beat đầu, còn lại ngôi 3</option>
+              <option value="minimal_narrator">Tường thuật thưa, ít lời</option>
+            </select>
+          </div>
+
+          <button type="button" class="btn-primary" id="btnGenerateScript" onclick="generateScriptFromAnalysis()">
+            <span>🎙️</span>
+            <span id="btnGenerateScriptText">Viết kịch bản theo template đã chốt</span>
+          </button>
         </div>
 
         <!-- Ngôn ngữ xuất lời bình -->
@@ -151,10 +154,10 @@
           </div>
         </div>
 
-        <!-- Nút bấm phân tích -->
-        <button type="button" class="btn-primary" id="btnProcess" onclick="submitVideoProcess()">
+        <!-- Nút bấm phân tích (bước 1) -->
+        <button type="button" class="btn-primary" id="btnAnalyze" onclick="analyzeVideo()">
           <span>⚡</span>
-          <span id="btnProcessText">Phân tích & Viết Lời bình</span>
+          <span id="btnAnalyzeText">Bước 1: Phân tích video</span>
         </button>
 
       </div>
@@ -299,6 +302,6 @@
   <!-- TOAST CONTAINER -->
   <div class="toast-container" id="toastContainer"></div>
 
-  <script src="/static/app.js?v=model-test-2"></script>
+  <script src="/static/app.js?v=batch2-1"></script>
 </body>
 </html>
