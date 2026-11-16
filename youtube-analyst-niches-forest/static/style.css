@@ -331,6 +331,61 @@ body {
   border-color: var(--accent-blue);
 }
 
+.form-hint {
+  margin: 7px 0 0;
+  color: var(--text-muted, #9aa7b8);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+#topicOtherInput,
+#purposeOtherInput {
+  margin-top: 8px;
+}
+
+.timeline-evidence-tag {
+  color: var(--text-muted);
+  font-size: 11px;
+  margin: 3px 0;
+  text-transform: uppercase;
+}
+
+.timeline-edit {
+  width: 100%;
+  min-height: 54px;
+  resize: vertical;
+  color: var(--text-main);
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+}
+
+.timeline-source-select { margin-top: 6px; }
+
+.review-notes {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--accent-blue);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.review-notes p { margin: 4px 0; }
+
+.segment-rewrite-btn {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  background: var(--bg-input);
+  cursor: pointer;
+}
+
 .dropzone {
   border: 2px dashed var(--border-color);
   border-radius: var(--radius-md);

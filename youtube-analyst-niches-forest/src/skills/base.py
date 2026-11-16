@@ -23,13 +23,19 @@ class BaseCommentarySkill(ABC):
         language: str = "vi",
         custom_header: str = "",
         template_spec: Dict[str, Any] = None,
-        template_id: str = None
+        template_id: str = None,
+        topic: str = "other",
+        topic_other: str = None,
+        video_purpose: str = "other",
+        video_purpose_other: str = None
     ) -> str:
         header = custom_header or f"Hãy biên kịch một kịch bản lời bình CapCut cho video có thời lượng {duration} giây."
         template_note = ""
         if template_spec:
             beats = [item.get("beat") for item in template_spec.get("structure", {}).get("beats", []) if item.get("beat")]
             template_note = f"\nTEMPLATE ĐÃ CHỌN ({template_id}): dùng đúng thứ tự beat {', '.join(beats)}; không đổi nội dung/voiceover để ép timeline vào template.\n"
+        topic_label = topic_other if topic == "other" and topic_other else topic
+        purpose_label = video_purpose_other if video_purpose == "other" and video_purpose_other else video_purpose
         beat_template = ""
         if template_spec and beats:
             beat_template = ",\n".join(
@@ -53,6 +59,10 @@ class BaseCommentarySkill(ABC):
     }}'''
         return f"""{header}
 {template_note}
+
+CHỦ ĐỀ DO NGƯỜI DÙNG CHỌN: {topic_label}
+MỤC ĐÍCH VIDEO DO NGƯỜI DÙNG CHỌN: {purpose_label}
+Chỉ dùng thông tin có căn cứ trong timeline/audio; không biến chủ đề hoặc mục đích thành dữ kiện quan sát được.
 
 NHẬT KÝ HÀNH ĐỘNG THỰC TẾ (VISUAL ACTION TIMELINE):
 {json.dumps(visual_timeline, ensure_ascii=False, indent=2)}
@@ -79,6 +89,6 @@ Yêu cầu xuất ra JSON duy nhất theo đúng cấu trúc CapCut Interchange 
 }}
 """
 
-    def format_user_prompt(self, visual_timeline: Dict[str, Any], duration: float, language: str = "vi", template_spec: Dict[str, Any] = None, template_id: str = None) -> str:
+    def format_user_prompt(self, visual_timeline: Dict[str, Any], duration: float, language: str = "vi", template_spec: Dict[str, Any] = None, template_id: str = None, topic: str = "other", topic_other: str = None, video_purpose: str = "other", video_purpose_other: str = None) -> str:
         """Định dạng User Prompt cho Chặng 2 mặc định dùng standard template"""
-        return self.build_standard_user_prompt(visual_timeline, duration, language, template_spec=template_spec, template_id=template_id)
+        return self.build_standard_user_prompt(visual_timeline, duration, language, template_spec=template_spec, template_id=template_id, topic=topic, topic_other=topic_other, video_purpose=video_purpose, video_purpose_other=video_purpose_other)

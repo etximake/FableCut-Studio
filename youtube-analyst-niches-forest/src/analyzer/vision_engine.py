@@ -21,7 +21,8 @@ Core Rules:
    - If audio_hint has speech and status is 'COMPLETE', use key technical terms or numbers mentioned to enrich the description.
    - If audio status indicates truncation (TRUNCATED_START or TRUNCATED_END), do NOT try to continue the cut sentence; focus on visual action.
    - If audio is noise or irrelevant chatter, ignore it completely.
-4. Output Schema: Return strictly valid JSON matching the requested structure without any markdown wrap.
+4. Evidence labels: each action must include evidence_source. Use observed only for visible evidence; heard only for information explicitly present in audio_hint; inferred for a cautious inference; unknown when evidence is insufficient. Do not treat audio statements as visually observed facts.
+5. Output Schema: Return strictly valid JSON matching the requested structure without any markdown wrap.
 """
 
 class VisionActionEngine:
@@ -76,7 +77,11 @@ class VisionActionEngine:
         video_id: str,
         contact_sheet_path: str,
         audio_hint: AudioHint,
-        duration_seconds: float
+        duration_seconds: float,
+        topic: str = "other",
+        topic_other: Optional[str] = None,
+        video_purpose: str = "other",
+        video_purpose_other: Optional[str] = None,
     ) -> VisualActionTimeline:
         """
         Gửi ảnh lưới 3x3 + audio hint lên Vision LLM để sinh VisualActionTimeline.
@@ -85,6 +90,8 @@ class VisionActionEngine:
         
         user_prompt = f"""Analyze this 3x3 contact sheet for video ID: {video_id}
 Total Duration: {duration_seconds}s
+User-selected topic: {topic_other if topic == 'other' and topic_other else topic}
+User-selected purpose: {video_purpose_other if video_purpose == 'other' and video_purpose_other else video_purpose}
 
 AUDIO HINT DATA:
 {audio_hint.model_dump_json(indent=2)}
@@ -99,30 +106,38 @@ Return strictly valid JSON matching:
     {{
       "time_range": {{"start": 0.0, "end": 8.0}},
       "visual_action": "Clear description of action in frames 1-2",
-      "observable_changes": "Visible changes observed",
-      "confidence": 0.95
+       "observable_changes": "Visible changes observed",
+       "confidence": 0.8,
+       "evidence_source": "observed"
     }},
     {{
       "time_range": {{"start": 8.0, "end": 22.0}},
       "visual_action": "Action in frames 3-5",
       "observable_changes": "Visible changes",
-      "confidence": 0.95
+       "confidence": 0.8,
+       "evidence_source": "observed"
     }},
     {{
       "time_range": {{"start": 22.0, "end": 35.0}},
       "visual_action": "Action in frames 6-7",
       "observable_changes": "Visible changes",
-      "confidence": 0.95
+       "confidence": 0.8,
+       "evidence_source": "observed"
     }},
     {{
       "time_range": {{"start": 35.0, "end": {duration_seconds}}},
       "visual_action": "Action in frames 8-9",
       "observable_changes": "Outcome shown in last frame",
-      "confidence": 0.95
+       "confidence": 0.8,
+       "evidence_source": "observed"
     }}
   ],
   "final_outcome": "Definitive result shown in the final frame",
   "recommended_skill": "curiosity-explainer"
+  ,"topic": "{topic}"
+  ,"topic_other": {json.dumps(topic_other, ensure_ascii=False)}
+  ,"video_purpose": "{video_purpose}"
+  ,"video_purpose_other": {json.dumps(video_purpose_other, ensure_ascii=False)}
 }}
 """
 

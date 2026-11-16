@@ -79,8 +79,33 @@
         </div>
 
         <div class="form-group">
+          <label class="form-label" for="topicSelect">Chủ đề video:</label>
+          <select id="topicSelect" class="form-control" onchange="toggleOtherInput('topicSelect', 'topicOtherInput')">
+            <option value="agriculture_crops">Nông nghiệp / cây trồng</option>
+            <option value="agricultural_machinery">Máy móc nông nghiệp</option>
+            <option value="mining">Đào mỏ</option>
+            <option value="other">Khác</option>
+          </select>
+          <input id="topicOtherInput" class="form-control" maxlength="160" placeholder="Nhập chủ đề khác (không bắt buộc)" hidden />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="purposeSelect">Mục đích video:</label>
+          <select id="purposeSelect" class="form-control" onchange="toggleOtherInput('purposeSelect', 'purposeOtherInput')">
+            <option value="explain_mechanism">Giải thích cơ chế</option>
+            <option value="how_to">Hướng dẫn / thực hành</option>
+            <option value="show_process">Cho xem quy trình vận hành</option>
+            <option value="before_after">Kết quả trước – sau</option>
+            <option value="troubleshoot">Sự cố và cách xử lý</option>
+            <option value="other">Khác</option>
+          </select>
+          <input id="purposeOtherInput" class="form-control" maxlength="160" placeholder="Nhập mục đích khác (không bắt buộc)" hidden />
+        </div>
+
+        <div class="form-group">
           <label class="form-label" for="templateSelect">Template dựng:</label>
           <select id="templateSelect" class="form-control"><option value="">Tự động theo Skill</option></select>
+          <p id="templateRecommendationNote" class="form-hint" aria-live="polite">Chọn chủ đề và mục đích; hệ thống sẽ gợi ý template sau khi phân tích.</p>
         </div>
 
         <!-- Ngôn ngữ xuất lời bình -->
@@ -170,6 +195,7 @@
         <div class="timeline-list" id="timelineList">
           <div class="empty-placeholder">Diễn biến theo từng giây sẽ hiển thị tại đây sau khi AI quan sát ảnh lưới.</div>
         </div>
+        <div id="reviewNotes" class="review-notes" hidden></div>
 
       </div>
     </section>

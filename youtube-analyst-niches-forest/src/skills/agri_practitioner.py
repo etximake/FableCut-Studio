@@ -43,11 +43,11 @@ NGUYÊN TẮC BIÊN KỊCH NHÀ NÔNG BẤT BIẾN:
    - visual_hint: Gợi ý góc quay / cành quả cho editor.
 """
 
-    def format_user_prompt(self, visual_timeline: Dict[str, Any], duration: float, language: str = "vi", template_spec=None, template_id=None) -> str:
+    def format_user_prompt(self, visual_timeline: Dict[str, Any], duration: float, language: str = "vi", template_spec=None, template_id=None, topic="other", topic_other=None, video_purpose="other", video_purpose_other=None) -> str:
         return self.build_standard_user_prompt(
             visual_timeline=visual_timeline,
             duration=duration,
             language=language,
             custom_header=f"Hãy biên kịch một kịch bản lời bình nhà nông thực chiến (The Agri-Practitioner) cho video nông nghiệp có thời lượng {duration} giây:",
-            template_spec=template_spec, template_id=template_id
+            template_spec=template_spec, template_id=template_id, topic=topic, topic_other=topic_other, video_purpose=video_purpose, video_purpose_other=video_purpose_other
         )

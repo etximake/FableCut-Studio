@@ -30,6 +30,9 @@ class ActionBlock(BaseModel):
     visual_action: str = Field(..., description="Mô tả hành động thực tế diễn ra trên màn hình")
     observable_changes: str = Field(default="", description="Biến đổi vật lý/thị giác quan sát được")
     confidence: float = Field(default=0.9, ge=0.0, le=1.0)
+    evidence_source: Literal["observed", "heard", "inferred", "unknown"] = Field(
+        default="unknown", description="Nguồn căn cứ của sự kiện"
+    )
 
 class VisualActionTimeline(BaseModel):
     """Bản tường thuật sự thật khách quan của video theo mốc giây thực"""
@@ -40,6 +43,19 @@ class VisualActionTimeline(BaseModel):
     action_timeline: List[ActionBlock] = Field(default_factory=list, description="Chuỗi hành động theo mốc giây")
     final_outcome: str = Field(..., description="Kết quả hoặc trạng thái cuối cùng của chủ thể")
     recommended_skill: Optional[str] = Field(default="curiosity-explainer", description="Skill phù hợp nhất do AI đề xuất")
+    topic: Literal["agriculture_crops", "agricultural_machinery", "mining", "other"] = "other"
+    topic_other: Optional[str] = None
+    video_purpose: Literal["explain_mechanism", "how_to", "show_process", "before_after", "troubleshoot", "other"] = "other"
+    video_purpose_other: Optional[str] = None
+    selected_template_id: Optional[str] = None
+    template_recommendation_reason: Optional[str] = None
+    template_selection_source: Optional[Literal["manual", "recommended"]] = None
+
+
+class TemplateRecommendation(BaseModel):
+    template_id: str
+    reason: str
+    source: Literal["manual", "recommended"]
 
 # ==========================================
 # 3. CHẶNG 2: KỊCH BẢN LỜI BÌNH & CAPCUT INTERCHANGE V3
@@ -108,6 +124,13 @@ class CommentarySegment(BaseModel):
             return "PAYOFF"
         return "BUILD_UP"
 
+    @field_validator("sfx_cue", mode="before")
+    def normalize_sfx_cue(cls, v):
+        if isinstance(v, str):
+            # Convert string to SFXCue object
+            return SFXCue(suggested_sfx=v, start_offset=0.0, volume=0.85)
+        return v
+
 class CapCutMetadata(BaseModel):
     video_id: str
     title: str
@@ -132,6 +155,7 @@ class CapCutCommentaryInterchange(BaseModel):
     note: Optional[str] = None
     video_metadata: CapCutMetadata
     segments: List[CommentarySegment]
+    review_notes: List[str] = Field(default_factory=list, exclude=True)
 
 # ==========================================
 # 4. API REQUEST / RESPONSE MODELS
@@ -141,7 +165,11 @@ class CommentaryRequest(BaseModel):
     video_url: Optional[str] = Field(default=None, description="URL video YouTube / TikTok")
     video_path: Optional[str] = Field(default=None, description="Đường dẫn file video cục bộ")
     skill_id: str = Field(default="curiosity-explainer", description="ID phong cách biên kịch")
-    template_id: Optional[str] = None
+    template_id: Optional[Literal["hazard-rescue", "shock-hook", "how-it-works", "satisfying", "before-after", "story"]] = None
+    topic: Literal["agriculture_crops", "agricultural_machinery", "mining", "other"] = "other"
+    topic_other: Optional[str] = Field(default=None, max_length=160)
+    video_purpose: Literal["explain_mechanism", "how_to", "show_process", "before_after", "troubleshoot", "other"] = "other"
+    video_purpose_other: Optional[str] = Field(default=None, max_length=160)
     language: str = Field(default="vi", description="Ngôn ngữ lời bình (vi / en)")
     target_duration: Optional[float] = Field(default=None, description="Thời lượng mục tiêu")
     enable_tts: bool = Field(default=True, description="Tự động tạo giọng đọc Voiceover TTS")
@@ -151,7 +179,11 @@ class CommentaryRequest(BaseModel):
 class RewriteRequest(BaseModel):
     video_id: str = Field(..., description="ID video đã có sẵn Visual Timeline trong hệ thống")
     new_skill_id: str = Field(..., description="Skill mới muốn áp dụng")
-    template_id: Optional[str] = None
+    template_id: Optional[Literal["hazard-rescue", "shock-hook", "how-it-works", "satisfying", "before-after", "story"]] = None
+    topic: Literal["agriculture_crops", "agricultural_machinery", "mining", "other"] = "other"
+    topic_other: Optional[str] = Field(default=None, max_length=160)
+    video_purpose: Literal["explain_mechanism", "how_to", "show_process", "before_after", "troubleshoot", "other"] = "other"
+    video_purpose_other: Optional[str] = Field(default=None, max_length=160)
     language: Optional[str] = Field(default="vi", description="Ngôn ngữ lời bình")
     enable_tts: bool = Field(default=True, description="Tự động tạo lại giọng đọc Voiceover TTS")
     tts_voice: str = Field(default="am_adam", description="ID giọng đọc")
@@ -180,3 +212,81 @@ class ProcessVideoResponse(BaseModel):
     voiceover_audio_url: Optional[str] = Field(default=None, description="URL file audio voiceover đã sinh")
     voiceover_audio_duration: Optional[float] = Field(default=None, description="Thời lượng file voiceover")
     token_usage: dict = Field(default_factory=dict)
+    template_recommendation: Optional[TemplateRecommendation] = None
+    review_notes: List[str] = Field(default_factory=list)
+    story_angle: Optional[str] = None
+    qa_metadata: dict = Field(default_factory=dict)
+
+
+class GenerateCommentaryRequest(BaseModel):
+    video_id: str
+    skill_id: str = "curiosity-explainer"
+    template_id: Optional[Literal["hazard-rescue", "shock-hook", "how-it-works", "satisfying", "before-after", "story"]] = None
+    topic: Literal["agriculture_crops", "agricultural_machinery", "mining", "other"] = "other"
+    topic_other: Optional[str] = Field(default=None, max_length=160)
+    video_purpose: Literal["explain_mechanism", "how_to", "show_process", "before_after", "troubleshoot", "other"] = "other"
+    video_purpose_other: Optional[str] = Field(default=None, max_length=160)
+    language: str = "vi"
+    enable_tts: bool = False
+    content_only: bool = True
+    tts_voice: str = "am_adam"
+    tts_speed: float = Field(default=1.0, ge=0.5, le=2.0)
+
+
+class ExportRequest(BaseModel):
+    video_id: str = Field(min_length=1, max_length=128)
+    format: Literal["capcut_json", "srt", "srt_vi", "bundle_zip", "audio", "contact_sheet", "thumbnail", "video"] = "capcut_json"
+
+    @field_validator("video_id")
+    @classmethod
+    def validate_video_id(cls, value):
+        import re
+        if not re.fullmatch(r"[\w.-]+", value):
+            raise ValueError("video_id contains unsupported characters")
+        return value
+
+
+class CommentaryGenerationResponse(BaseModel):
+    status: Literal["SUCCESS"] = "SUCCESS"
+    video_id: str
+    capcut_json: CapCutCommentaryInterchange
+    template_recommendation: TemplateRecommendation
+    review_notes: List[str] = Field(default_factory=list)
+    source: Literal["manual", "recommended"] = "recommended"
+    story_angle: str = ""
+    qa_metadata: dict = Field(default_factory=dict)
+
+
+class RewriteResponse(BaseModel):
+    status: Literal["SUCCESS"] = "SUCCESS"
+    video_id: str
+    capcut_json: CapCutCommentaryInterchange
+    review_notes: List[str] = Field(default_factory=list)
+
+
+class ActionBlockUpdate(BaseModel):
+    visual_action: Optional[str] = None
+    observable_changes: Optional[str] = None
+    confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    evidence_source: Optional[Literal["observed", "heard", "inferred", "unknown"]] = None
+
+
+class VisualTimelineUpdate(BaseModel):
+    events: dict[str, ActionBlockUpdate]
+
+
+class PartialRewriteRequest(BaseModel):
+    video_id: str
+    segment_index: int = Field(ge=0)
+    current_voiceover: Optional[str] = Field(default=None, max_length=2000)
+    instruction: Optional[str] = Field(default=None, max_length=400)
+    language: str = "vi"
+    skill_id: str = "curiosity-explainer"
+
+
+class PartialRewriteResponse(BaseModel):
+    status: Literal["SUCCESS"] = "SUCCESS"
+    video_id: str
+    segment_index: int
+    segment: CommentarySegment
+    review_note: str = "Đối chiếu nội dung mới với bằng chứng trước khi duyệt."

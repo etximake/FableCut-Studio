@@ -19,7 +19,14 @@ from src.models.schemas import (
     SaveScriptResponse,
     ProcessVideoResponse,
     VisualActionTimeline,
-    CapCutCommentaryInterchange
+    CapCutCommentaryInterchange,
+    GenerateCommentaryRequest,
+    CommentaryGenerationResponse,
+    ExportRequest,
+    VisualTimelineUpdate,
+    PartialRewriteRequest,
+    PartialRewriteResponse,
+    RewriteResponse,
 )
 from src.preprocessor.video_preprocessor import LocalVideoPreprocessor
 from src.analyzer.vision_engine import VisionActionEngine
@@ -289,8 +296,17 @@ def process_video(request: CommentaryRequest):
             video_id=video_id,
             contact_sheet_path=contact_sheet_path,
             audio_hint=audio_hint,
-            duration_seconds=duration
+            duration_seconds=duration,
+            topic=request.topic,
+            topic_other=request.topic_other,
+            video_purpose=request.video_purpose,
+            video_purpose_other=request.video_purpose_other,
         )
+        # User selections are authoritative; Vision output cannot override them.
+        visual_timeline.topic = request.topic
+        visual_timeline.topic_other = request.topic_other
+        visual_timeline.video_purpose = request.video_purpose
+        visual_timeline.video_purpose_other = request.video_purpose_other
         # Lưu vào SQLite để dùng lại cho các lần Rewrite sau
         db.save_visual_timeline(visual_timeline)
     except Exception as e:
@@ -303,7 +319,11 @@ def process_video(request: CommentaryRequest):
             skill_id=request.skill_id,
             language=request.language,
             target_duration=duration,
-            template_id=request.template_id
+            template_id=request.template_id,
+            topic=request.topic,
+            video_purpose=request.video_purpose,
+            topic_other=request.topic_other,
+            video_purpose_other=request.video_purpose_other,
         )
 
         # 4. Chặng 3: Sinh giọng đọc Voiceover TTS nếu được bật
@@ -341,6 +361,15 @@ def process_video(request: CommentaryRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi biên soạn lời bình Chặng 2: {str(e)}")
 
+    template_recommendation = commentary_engine.recommend_template(
+        request.skill_id, request.topic, request.video_purpose,
+        request.template_id, request.topic_other, request.video_purpose_other,
+    )
+    visual_timeline.selected_template_id = template_recommendation.template_id
+    visual_timeline.template_recommendation_reason = template_recommendation.reason
+    visual_timeline.template_selection_source = template_recommendation.source
+    db.save_visual_timeline(visual_timeline)
+    script_review_notes = commentary_engine.validate_generated_script(capcut_script)
     return ProcessVideoResponse(
         status="SUCCESS",
         video_id=video_id,
@@ -354,8 +383,145 @@ def process_video(request: CommentaryRequest):
             "stage1_vision_tokens": 1050,
             "stage2_text_tokens": 420,
             "total_tokens": 1470
-        }
+        },
+        template_recommendation=template_recommendation,
+        review_notes=script_review_notes + [
+            f"Phân tích được yêu cầu cho chủ đề: {request.topic_other if request.topic == 'other' and request.topic_other else request.topic.replace('_', ' ')}.",
+            f"Mục đích video: {request.video_purpose_other if request.video_purpose == 'other' and request.video_purpose_other else request.video_purpose.replace('_', ' ')}.",
+            "Các phát biểu kỹ thuật hoặc nguyên nhân không thể xác nhận từ hình/âm thanh cần được người dùng kiểm tra.",
+        ],
+        story_angle=commentary_engine.choose_story_angle(visual_timeline, request.topic, request.video_purpose),
+        qa_metadata={
+            "topic": request.topic,
+            "purpose": request.video_purpose,
+            "template_id": template_recommendation.template_id,
+            "template_source": template_recommendation.source,
+            "template_version": "1.1.0",
+            "prompt_version": "baseline-m1-m6-v1",
+            "model": settings.DEFAULT_TEXT_MODEL,
+            "warnings_count": len(script_review_notes),
+        },
     )
+
+
+@router.post("/commentary/generate-script", response_model=CommentaryGenerationResponse)
+def generate_script_from_saved_analysis(request: GenerateCommentaryRequest):
+    """Generate/re-generate script from a saved visual timeline without re-running Vision."""
+    visual_timeline = db.get_visual_timeline(request.video_id)
+    if not visual_timeline:
+        raise HTTPException(status_code=404, detail=f"Không tìm thấy phân tích cho video {request.video_id}.")
+    recommendation = commentary_engine.recommend_template(
+        request.skill_id, request.topic, request.video_purpose, request.template_id,
+        request.topic_other, request.video_purpose_other,
+    )
+    visual_timeline.topic = request.topic
+    visual_timeline.topic_other = request.topic_other
+    visual_timeline.video_purpose = request.video_purpose
+    visual_timeline.video_purpose_other = request.video_purpose_other
+    visual_timeline.selected_template_id = recommendation.template_id
+    visual_timeline.template_recommendation_reason = recommendation.reason
+    visual_timeline.template_selection_source = recommendation.source
+    db.save_visual_timeline(visual_timeline)
+    try:
+        script = commentary_engine.generate_commentary(
+            visual_timeline=visual_timeline,
+            skill_id=request.skill_id,
+            language=request.language,
+            target_duration=visual_timeline.duration_seconds,
+            template_id=recommendation.template_id,
+            topic=request.topic,
+            topic_other=request.topic_other,
+            video_purpose=request.video_purpose,
+            video_purpose_other=request.video_purpose_other,
+        )
+        notes = commentary_engine.validate_generated_script(script)
+        if request.content_only:
+            return CommentaryGenerationResponse(
+                video_id=request.video_id,
+                capcut_json=script,
+                template_recommendation=recommendation,
+                review_notes=notes,
+                source=recommendation.source,
+                story_angle=commentary_engine.choose_story_angle(visual_timeline, request.topic, request.video_purpose),
+                qa_metadata={"topic": request.topic, "purpose": request.video_purpose, "template_id": recommendation.template_id, "template_source": recommendation.source, "template_version": "1.1.0", "prompt_version": "baseline-m1-m6-v1", "model": settings.DEFAULT_TEXT_MODEL, "warnings_count": len(notes)},
+            )
+        if request.enable_tts:
+            tts_engine.synthesize_script(script=script, voice=request.tts_voice, speed=request.tts_speed)
+        db.save_commentary_script(script)
+        try:
+            exporter.export(script)
+        except Exception as export_exc:
+            logger.warning("Generated script saved but export failed for %s: %s", request.video_id, export_exc)
+        return CommentaryGenerationResponse(
+            video_id=request.video_id, capcut_json=script,
+            template_recommendation=recommendation, review_notes=notes,
+            source=recommendation.source,
+            story_angle=commentary_engine.choose_story_angle(visual_timeline, request.topic, request.video_purpose),
+            qa_metadata={"topic": request.topic, "purpose": request.video_purpose, "template_id": recommendation.template_id, "template_source": recommendation.source, "template_version": "1.1.0", "prompt_version": "baseline-m1-m6-v1", "model": settings.DEFAULT_TEXT_MODEL, "warnings_count": len(notes)},
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Không thể tạo lời bình: {exc}")
+
+
+@router.post("/commentary/rewrite-segment", response_model=PartialRewriteResponse)
+def rewrite_one_segment(request: PartialRewriteRequest):
+    script = db.get_latest_script(request.video_id)
+    if not script:
+        raise HTTPException(status_code=404, detail="Chưa có kịch bản đã lưu.")
+    if request.segment_index >= len(script.segments):
+        raise HTTPException(status_code=422, detail="segment_index nằm ngoài phạm vi kịch bản.")
+    original = script.segments[request.segment_index]
+    timeline = db.get_visual_timeline(request.video_id)
+    evidence = timeline.action_timeline[request.segment_index] if timeline and request.segment_index < len(timeline.action_timeline) else None
+    skill = registry.get(request.skill_id)
+    prompt = (
+        "Rewrite only this one narration segment. Return JSON with voiceover and voiceover_vi_translation. "
+        "Do not add facts beyond the evidence. Keep the same beat and timing.\n"
+        f"Beat: {original.beat}\nCurrent narration: {request.current_voiceover or original.voiceover}\n"
+        f"Evidence: {evidence.model_dump_json() if evidence else 'unknown'}\n"
+        f"User instruction: {request.instruction or 'Improve clarity and specificity.'}\nLanguage: {request.language}"
+    )
+    previous_script_json = script.model_dump_json()
+    try:
+        result = commentary_engine._call_text_llm(
+            settings.OPENAI_API_KEY, settings.OPENAI_BASE_URL, settings.DEFAULT_TEXT_MODEL,
+            skill.get_system_instructions(request.language), prompt,
+        )
+        original.voiceover = str(result.get("voiceover", original.voiceover))
+        original.voiceover_vi_translation = str(result.get("voiceover_vi_translation", original.voiceover_vi_translation or ""))
+        review_notes = commentary_engine.validate_generated_script(script)
+        db.save_commentary_script(script)
+        return PartialRewriteResponse(
+            video_id=request.video_id,
+            segment_index=request.segment_index,
+            segment=original,
+            review_note=" ".join(review_notes) if review_notes else "Đối chiếu nội dung mới với bằng chứng trước khi duyệt.",
+        )
+    except Exception as exc:
+        script = CapCutCommentaryInterchange.model_validate_json(previous_script_json)
+        raise HTTPException(status_code=500, detail=f"Không thể viết lại beat: {exc}")
+
+
+@router.patch("/commentary/{video_id}/analysis")
+def update_visual_analysis(video_id: str, request: VisualTimelineUpdate):
+    """Apply user-reviewed event corrections to a saved analysis."""
+    timeline = db.get_visual_timeline(video_id)
+    if not timeline:
+        raise HTTPException(status_code=404, detail=f"Không tìm thấy phân tích cho video {video_id}.")
+    for raw_index, changes in request.events.items():
+        try:
+            index = int(raw_index)
+        except ValueError:
+            raise HTTPException(status_code=422, detail=f"Chỉ số sự kiện không hợp lệ: {raw_index}.")
+        if index < 0 or index >= len(timeline.action_timeline):
+            raise HTTPException(status_code=422, detail=f"Chỉ số sự kiện không hợp lệ: {index}.")
+        event = timeline.action_timeline[index]
+        for field, value in changes.model_dump(exclude_unset=True).items():
+            setattr(event, field, value)
+    db.save_visual_timeline(timeline)
+    return {"status": "SUCCESS", "video_id": video_id, "event_count": len(timeline.action_timeline)}
 
 @router.post("/commentary/upload-video")
 async def upload_video_file(file: UploadFile = File(...)):
@@ -417,7 +583,7 @@ async def get_sfx_audio(sfx_id: str):
         
     return FileResponse(path=audio_file, media_type="audio/wav")
 
-@router.post("/commentary/rewrite", response_model=CapCutCommentaryInterchange)
+@router.post("/commentary/rewrite", response_model=RewriteResponse)
 def rewrite_commentary(request: RewriteRequest):
     """
     Viết lại lời bình với Skill hoặc ngôn ngữ mới:
@@ -437,7 +603,11 @@ def rewrite_commentary(request: RewriteRequest):
             visual_timeline=visual_timeline,
             skill_id=request.new_skill_id,
             language=request.language or "vi",
-            template_id=request.template_id
+            template_id=request.template_id,
+            topic=request.topic,
+            video_purpose=request.video_purpose,
+            topic_other=request.topic_other,
+            video_purpose_other=request.video_purpose_other,
         )
 
         audio_file_path = None
@@ -454,7 +624,7 @@ def rewrite_commentary(request: RewriteRequest):
         db.save_commentary_script(new_script)
         export_result = exporter.export(new_script, audio_path=audio_file_path)
         cleanup_video_temp_files(request.video_id, audio_path=audio_file_path, export_result=export_result)
-        return new_script
+        return RewriteResponse(video_id=request.video_id, capcut_json=new_script, review_notes=commentary_engine.validate_generated_script(new_script))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi viết lại kịch bản: {str(e)}")
 
@@ -525,8 +695,12 @@ def synthesize_tts_endpoint(request: TTSSynthesizeRequest):
             voice=request.voice,
             speed=request.speed
         )
+        # Preserve the approved script/timing if TTS/export fails; never let audio timing overwrite the draft.
         db.save_commentary_script(script)
-        exporter.export(script, audio_path=audio_path)
+        try:
+            exporter.export(script, audio_path=audio_path)
+        except Exception as export_exc:
+            logger.warning("TTS generated but export failed for %s: %s", request.video_id, export_exc)
 
         return {
             "status": "SUCCESS",
@@ -552,10 +726,19 @@ async def get_commentary_audio(video_id: str):
 
     raise HTTPException(status_code=404, detail="Chưa có file Voiceover Audio cho video này.")
 
+@router.post("/commentary/export")
+async def export_by_request(request: ExportRequest):
+    return await download_export(request.video_id, request.format)
+
+
 @router.get("/commentary/{video_id}/export")
 async def download_export(video_id: str, format: str = "capcut_json"):
     """Tải file theo định dạng tùy chọn: JSON, SRT, SRT_VI, Audio WAV, Contact Sheet, Thumbnail, Video MP4 hoặc Bundle ZIP"""
     fmt = format.lower().strip()
+    try:
+        video_id = ExportRequest(video_id=video_id, format=fmt).video_id
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"video_id không hợp lệ: {exc}")
 
     if fmt in ("bundle_zip", "zip"):
         zip_path = settings.TEMP_DIR / f"{video_id}_bundle.zip"

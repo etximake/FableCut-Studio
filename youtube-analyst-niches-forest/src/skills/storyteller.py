@@ -29,11 +29,11 @@ QUY TẮC NHỊP ĐỘ:
 - 135 - 150 từ/phút (~2.3 từ/giây). Đan xen câu dài với cụm từ gãy gọn (2-4 từ: "Không còn đường lui.", "Một tích tắc.").
 """
 
-    def format_user_prompt(self, visual_timeline: Dict[str, Any], duration: float, language: str = "vi", template_spec=None, template_id=None) -> str:
+    def format_user_prompt(self, visual_timeline: Dict[str, Any], duration: float, language: str = "vi", template_spec=None, template_id=None, topic="other", topic_other=None, video_purpose="other", video_purpose_other=None) -> str:
         return self.build_standard_user_prompt(
             visual_timeline=visual_timeline,
             duration=duration,
             language=language,
             custom_header=f"Biên kịch kịch bản điện ảnh kịch tính (Suspense Storyteller) cho video {duration} giây:",
-            template_spec=template_spec, template_id=template_id
+            template_spec=template_spec, template_id=template_id, topic=topic, topic_other=topic_other, video_purpose=video_purpose, video_purpose_other=video_purpose_other
         )

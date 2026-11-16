@@ -24,11 +24,11 @@ CHIẾN THUẬT BIÊN KỊCH:
    - Khi tai nạn hoặc tình huống lố bịch diễn ra, tung ra câu nhận xét châm biếm sắc sảo (Punchline) khiến người xem phải bật cười và tua lại xem.
 """
 
-    def format_user_prompt(self, visual_timeline: Dict[str, Any], duration: float, language: str = "vi", template_spec=None, template_id=None) -> str:
+    def format_user_prompt(self, visual_timeline: Dict[str, Any], duration: float, language: str = "vi", template_spec=None, template_id=None, topic="other", topic_other=None, video_purpose="other", video_purpose_other=None) -> str:
         return self.build_standard_user_prompt(
             visual_timeline=visual_timeline,
             duration=duration,
             language=language,
             custom_header=f"Biên kịch kịch bản hài hước bẻ lái (Witty & Twist) cho video {duration} giây:",
-            template_spec=template_spec, template_id=template_id
+            template_spec=template_spec, template_id=template_id, topic=topic, topic_other=topic_other, video_purpose=video_purpose, video_purpose_other=video_purpose_other
         )

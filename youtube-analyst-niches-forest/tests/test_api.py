@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+import pytest
 from main import app
 
 client = TestClient(app)
@@ -23,6 +24,20 @@ def test_list_skills_api():
     assert len(data["skills"]) == 5
     skill_ids = [s["skill_id"] for s in data["skills"]]
     assert "agri-practitioner" in skill_ids
+
+def test_templates_api_returns_registry_entries():
+    response = client.get("/api/v1/templates")
+    assert response.status_code == 200
+    ids = {item["template_id"] for item in response.json()["templates"]}
+    assert {"how-it-works", "satisfying", "before-after", "hazard-rescue"} <= ids
+
+
+def test_export_request_rejects_path_like_video_ids():
+    from pydantic import ValidationError
+    from src.models.schemas import ExportRequest
+
+    with pytest.raises(ValidationError):
+        ExportRequest(video_id="../private", format="capcut_json")
 
 def test_sfx_catalog_api():
     response = client.get("/api/v1/sfx/catalog")

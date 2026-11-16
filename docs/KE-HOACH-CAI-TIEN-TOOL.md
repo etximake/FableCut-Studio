@@ -190,3 +190,35 @@ Test hiện tại xác nhận API hoặc file được tạo, nhưng chưa đo c
 **1 → 2 → 3 → 4 → 5 → 6.** Bắt đầu bằng việc người dùng xác định đúng mục đích video; sau đó cải thiện dữ liệu quan sát, biên kịch và template. Khi kết quả backend ổn định, hoàn thiện luồng giao diện rồi khóa chất lượng bằng QA và render thực tế.
 
 Kế hoạch ưu tiên **độ tin cậy, khả năng kiểm soát và kiến trúc rõ ràng** trước hiệu ứng hoặc tự động hóa thêm.
+
+## Cập nhật tiến độ (Nov 15 2026)
+
+### Trạng thái hiện tại
+- **M1 (Chọn mục đích video):** Hoàn thành. Thêm trường chủ đề/mục đích có cấu trúc; frontend hiển thị dropdown; đề xuất template dựa trên mục đích.
+- **M2 (Tin cậy evidence):** Hoàn thành. Chuẩn hóa nhãn evidence trong VisualActionTimeline; UI hiển thị evidence source; kiểm tra claims không có bằng chứng; backend coi chủ đề/mục đích là giá trị có thẩm quyền.
+- **M3 (Tách biên kịch khỏi template):** Hoàn thành. Quy trình gồm chọn góc kể, tạo lời bình, định dạng template; kiểm tra sau sinh cho claims, beat rỗng, hook, câu kết; validate_json theo chủ đề; thêm endpoint rewrite beat an toàn.
+- **M4 (Template/compiler khớp nhau):** Hoàn thành. Xác thực template beat, timeline trùng nhau, cảnh báo template-duration; thêm validate_template_compatibility vào adapter; test template qua các fixture; toàn bộ test pipeline pass.
+- **M5 (Quy trình giao diện):** Đang chờ. Các thay đổi endpoint đã hoàn thành (generate-script, rewrite-segment, export); frontend đã tách module; các bước UI hiện có; cần tiếp tục hoàn thiện các bước theo trạng thái.
+- **M6 (QA + render thực tế):** Đang chờ. Test backend (test_template_recommendation, test_api) pass; metadata QA lưu trong response; kiểm tra claims theo bằng chứng; test render trực quan chưa được thực hiện (có thể tạo một clip mẫu khi có thể).
+
+### Các test đã pass
+- **Analyst:** 40 passed (bao gồm test_template_recommendation mới, test test_api cho export video_id validation).
+- **Bundle:** 7 passed (bao gồm test_template_compatibility cho reject beats & warnings).
+- **QA fixtures:** 7/7 fixture JSON pass (bao gồm kiểm tra template compatibility warnings).
+- Linting: `node --check static/app.js` pass; `git diff --check` pass.
+
+### File mới
+- `docs/kien-truc-phoi-hop-chatgpt-web-opencode.md` – tài liệu hướng dẫn mới về kiến trúc phối hợp.
+- `youtube-analyst-niches-forest/tests/test_template_recommendation.py` – test cho đề xuất template, bao gồm kiểm tra nông nghiệp/máy móc (agri_crops → how-it-works; agricultural_machinery → how-it-works; mining → hazard-rescue).
+
+### Chưa hoàn thành
+- **Kiểm tra render trực quan**: Không có clip mẫu cho template; có thể tạo một video render mẫu khi có thể.
+- **Các bước giao diện**: Vẫn cần chia quy trình thành các bước có trạng thái (Nguồn → Phân tích → Hướng kể → Duyệt → Nghe thử → Xuất).
+- **Kiểm tra thực tế cho nhiều chủ đề/mục đích**: Có thể thêm các fixture cho mining, agricultural_machinery, agriculture_crops với nhiều mục đích.
+
+### Đề xuất tiếp theo
+- Hoàn thiện giao diện bước, thêm các kiểm tra ghi chú, v.v.
+- Tạo một video render mẫu khi môi trường cho phép.
+- Tiếp tục rà soát mã nguồn, xóa bỏ bất kỳ đoạn xử lý nghiệp vụ nào còn lại trong JavaScript global.
+
+Nếu bạn muốn tôi tiếp tục thực hiện bất kỳ phần tiếp theo nào (ví dụ: hoàn thiện các bước giao diện, thêm test M6 mới, tạo video mẫu), vui lòng cho tôi biết.

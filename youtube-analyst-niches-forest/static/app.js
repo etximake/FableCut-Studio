@@ -41,6 +41,9 @@ async function fetchTemplates() {
       option.textContent = template.name_vi || template.name_en || template.template_id;
       select.appendChild(option);
     });
+    select.addEventListener("change", updateTemplateHint);
+    const recommendation = currentResult?.template_recommendation || currentResult?.capcut_json?.template_recommendation;
+    if (recommendation?.template_id && !select.value) select.value = recommendation.template_id;
   } catch (error) { console.warn("Template registry unavailable", error); }
 }
 
@@ -129,6 +132,31 @@ async function fetchAiStatus() {
   } catch (err) {
     console.error("AI Status error:", err);
   }
+}
+
+function toggleOtherInput(selectId, inputId) {
+  const select = document.getElementById(selectId);
+  const input = document.getElementById(inputId);
+  if (select && input) input.hidden = select.value !== "other";
+}
+
+function updateTemplateHint(recommendation = null) {
+  const note = document.getElementById("templateRecommendationNote");
+  const selectedTemplate = document.getElementById("templateSelect")?.value;
+  if (!note) return;
+  if (selectedTemplate) {
+    note.textContent = `Template ${selectedTemplate} được chọn thủ công và sẽ được ưu tiên.`;
+  } else if (recommendation?.reason) {
+    note.textContent = `Gợi ý: ${recommendation.template_id}. ${recommendation.reason}`;
+  } else {
+    note.textContent = "Chọn chủ đề và mục đích; hệ thống sẽ gợi ý template sau khi phân tích.";
+  }
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, character => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  })[character]);
 }
 
 async function testAiModel(modelType, button) {
@@ -327,6 +355,10 @@ async function submitVideoProcess() {
       video_path: videoPath,
       skill_id: currentSelectedSkill,
       template_id: document.getElementById("templateSelect")?.value || null,
+      topic: document.getElementById("topicSelect")?.value || "other",
+      topic_other: document.getElementById("topicOtherInput")?.value.trim() || null,
+      video_purpose: document.getElementById("purposeSelect")?.value || "other",
+      video_purpose_other: document.getElementById("purposeOtherInput")?.value.trim() || null,
       language: language,
       enable_tts: enableTts,
       tts_voice: ttsVoice,
@@ -346,6 +378,7 @@ async function submitVideoProcess() {
 
     const data = await res.json();
     currentResult = data;
+    updateTemplateHint(data.template_recommendation);
     lastSavedAt = null;
     renderFullResult(data);
     showToast("Phân tích và tạo kịch bản CapCut thành công!");
@@ -364,6 +397,8 @@ async function submitVideoProcess() {
 
 // Render Full Results
 function renderFullResult(data) {
+  const recommendation = data.template_recommendation || data.capcut_json?.template_recommendation;
+  updateTemplateHint(recommendation);
   // 1. Render Contact Sheet 3x3
   const imgBox = document.getElementById("contactSheetBox");
   const img = document.getElementById("contactSheetImg");
@@ -403,12 +438,34 @@ function renderFullResult(data) {
     data.visual_timeline.action_timeline.forEach(item => {
       const el = document.createElement("div");
       el.className = "timeline-item";
-      el.innerHTML = `
-        <div class="timeline-item-time">[${formatSeconds(item.time_range.start)} - ${formatSeconds(item.time_range.end)}]</div>
-        <div class="timeline-item-action">${item.visual_action}</div>
-      `;
+      const evidence = document.createElement("div");
+      evidence.className = "timeline-evidence-tag";
+      evidence.textContent = `${item.evidence_source || "unknown"} · tin cậy ${Math.round((item.confidence ?? 0) * 100)}%`;
+      const action = document.createElement("textarea");
+      action.className = "timeline-item-action timeline-edit";
+      action.value = item.visual_action || "";
+      action.setAttribute("aria-label", `Sự kiện ${formatSeconds(item.time_range.start)}: mô tả`);
+      action.addEventListener("change", () => updateTimelineEvent(data.video_id, item, action.value));
+      const source = document.createElement("select");
+      source.className = "form-control timeline-source-select";
+      [["observed", "Đã thấy"], ["heard", "Từ âm thanh"], ["inferred", "Suy luận"], ["unknown", "Chưa rõ"]].forEach(([value, label]) => {
+        const option = document.createElement("option"); option.value = value; option.textContent = label;
+        option.selected = (item.evidence_source || "unknown") === value; source.appendChild(option);
+      });
+      source.addEventListener("change", () => updateTimelineEvent(data.video_id, item, action.value, source.value));
+      const time = document.createElement("div");
+      time.className = "timeline-item-time";
+      time.textContent = `[${formatSeconds(item.time_range.start)} - ${formatSeconds(item.time_range.end)}]`;
+      el.append(time, evidence, action, source);
       timelineList.appendChild(el);
     });
+  }
+
+  const notes = document.getElementById("reviewNotes");
+  if (notes) {
+    const items = [...(data.story_angle || data.capcut_json?.story_angle ? [`Góc kể: ${data.story_angle || data.capcut_json?.story_angle}`] : []), ...(recommendation?.reason ? [`${recommendation.source === "manual" ? "Template người dùng chọn" : "Lý do gợi ý template"}: ${recommendation.reason}`] : []), ...(data.review_notes || data.capcut_json?.review_notes || [])];
+    notes.hidden = items.length === 0;
+    notes.innerHTML = items.map(item => `<p>${escapeHtml(item)}</p>`).join("");
   }
 
   // 4. Render Commentary Studio
@@ -430,9 +487,36 @@ function renderFullResult(data) {
   }
 }
 
+async function updateTimelineEvent(videoId, item, description, evidenceSource = item.evidence_source || "unknown") {
+  const index = currentResult?.visual_timeline?.action_timeline?.indexOf(item);
+  if (!videoId || index == null || index < 0) return;
+  try {
+    const response = await fetch(`/api/v1/commentary/${encodeURIComponent(videoId)}/analysis`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ events: { [index]: { visual_action: description, evidence_source: evidenceSource } } })
+    });
+    if (!response.ok) throw new Error("Không lưu được chỉnh sửa phân tích.");
+    item.visual_action = description;
+    item.evidence_source = evidenceSource;
+    showToast("Đã lưu chỉnh sửa phân tích.");
+  } catch (error) {
+    const notes = document.getElementById("reviewNotes");
+    if (notes) { notes.hidden = false; notes.textContent = error.message; }
+  }
+}
+
 // Render Commentary Segments
 function renderCommentarySegments(capcutJson) {
   if (!capcutJson) return;
+
+  if (Array.isArray(currentResult?.review_notes)) {
+    const notes = document.getElementById("reviewNotes");
+    if (notes) {
+      notes.hidden = currentResult.review_notes.length === 0;
+      notes.innerHTML = currentResult.review_notes.map(item => `<p>${escapeHtml(item)}</p>`).join("");
+    }
+  }
 
   // SPEC-01: nội dung vừa render là trạng thái mới nhất từ server -> hết "chưa lưu"
   isScriptDirty = false;
@@ -488,9 +572,33 @@ function renderCommentarySegments(capcutJson) {
           <span>${sfxName}</span>
         ${sfxId ? `</button>` : `</span>`}
       </div>
+      <button type="button" class="segment-rewrite-btn" onclick="rewriteOneSegment(${idx}, this)">Viết lại beat này</button>
     `;
     container.appendChild(card);
   });
+}
+
+async function rewriteOneSegment(index, button) {
+  if (!currentResult?.video_id) return;
+  const card = button.closest(".segment-card");
+  const voiceover = card?.querySelector(".segment-textarea")?.value || "";
+  button.disabled = true;
+  try {
+    const response = await fetch("/api/v1/commentary/rewrite-segment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ video_id: currentResult.video_id, segment_index: index, current_voiceover: voiceover, instruction: "Improve clarity while preserving the claim scope.", skill_id: currentSelectedSkill, language: document.getElementById("languageSelect").value })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || "Không thể viết lại beat.");
+    currentResult.capcut_json.segments[index] = data.segment;
+    isScriptDirty = true;
+    renderCommentarySegments(currentResult.capcut_json);
+    markScriptDirty();
+  } catch (error) {
+    const notes = document.getElementById("reviewNotes");
+    if (notes) { notes.hidden = false; notes.textContent = error.message; }
+  } finally { button.disabled = false; }
 }
 
 function updateSegmentViTranslation(index, newText) {
@@ -655,24 +763,35 @@ async function handleQuickRewrite() {
   const ttsSpeed = parseFloat(document.getElementById("ttsSpeedRange").value) || 1.0;
 
   try {
-    const res = await fetch("/api/v1/commentary/rewrite", {
+    const res = await fetch("/api/v1/commentary/generate-script", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         video_id: currentResult.video_id,
-        new_skill_id: currentSelectedSkill,
+        skill_id: currentSelectedSkill,
         template_id: document.getElementById("templateSelect")?.value || null,
+        topic: document.getElementById("topicSelect")?.value || "other",
+        topic_other: document.getElementById("topicOtherInput")?.value.trim() || null,
+        video_purpose: document.getElementById("purposeSelect")?.value || "other",
+        video_purpose_other: document.getElementById("purposeOtherInput")?.value.trim() || null,
         language: language,
         enable_tts: enableTts,
         tts_voice: ttsVoice,
-        tts_speed: ttsSpeed
+        tts_speed: ttsSpeed,
+        content_only: true
       })
     });
 
     if (!res.ok) throw new Error("Viết lại thất bại.");
 
-    const newScript = await res.json();
+    const rewriteData = await res.json();
+    const newScript = rewriteData.capcut_json || rewriteData;
     currentResult.capcut_json = newScript;
+    if (rewriteData.template_recommendation) {
+      currentResult.template_recommendation = rewriteData.template_recommendation;
+      updateTemplateHint(rewriteData.template_recommendation);
+    }
+    currentResult.review_notes = rewriteData.review_notes || [];
     lastSavedAt = null;
     renderCommentarySegments(newScript);
 
