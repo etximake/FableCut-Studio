@@ -34,6 +34,25 @@ class ActionBlock(BaseModel):
         default="unknown", description="Nguồn căn cứ của sự kiện"
     )
 
+# Ngôi kể và cảm giác mục tiêu (Batch 1 — luồng đơn giản):
+# ngôi kể là tham số riêng, nhất quán cả video; cảm giác suy ra từ template.
+NarratorMode = Literal["third_person", "second_person_hook", "minimal_narrator"]
+TargetFeeling = Literal["curiosity", "satisfaction", "understanding"]
+
+
+class EvidenceSignals(BaseModel):
+    """Các tín hiệu cấu trúc mà Vision quan sát được trực tiếp từ hình ảnh.
+
+    Chỉ dùng để GỢI Ý template theo decision tree trong templates/index.json.
+    Mọi tín hiệu mặc định False; Vision chỉ bật khi quan sát được rõ ràng.
+    """
+    has_transformation: bool = False
+    has_hazard_or_breakdown: bool = False
+    has_distinct_steps: bool = False
+    has_surprising_fact: bool = False
+    has_person_story: bool = False
+    process_is_main_appeal: bool = False
+
 class VisualActionTimeline(BaseModel):
     """Bản tường thuật sự thật khách quan của video theo mốc giây thực"""
     video_id: str
@@ -42,7 +61,10 @@ class VisualActionTimeline(BaseModel):
     initial_state: str = Field(default="", description="Trạng thái bối cảnh ban đầu (0s - 5s)")
     action_timeline: List[ActionBlock] = Field(default_factory=list, description="Chuỗi hành động theo mốc giây")
     final_outcome: str = Field(..., description="Kết quả hoặc trạng thái cuối cùng của chủ thể")
-    recommended_skill: Optional[str] = Field(default="curiosity-explainer", description="Skill phù hợp nhất do AI đề xuất")
+    evidence_signals: EvidenceSignals = Field(default_factory=EvidenceSignals, description="Tín hiệu cấu trúc quan sát được, dùng để gợi ý template")
+    recommended_skill: Optional[str] = Field(default="curiosity-explainer", description="DEPRECATED (Batch 1): Vision không còn trả trường này; giữ lại để timeline đã lưu cũ vẫn đọc được.")
+    # DEPRECATED (Batch 1): topic/video_purpose không còn dùng để quyết định hay đưa vào prompt.
+    # Giữ lại để timeline/request đã lưu cũ vẫn đọc được; code mới phải bỏ qua chúng.
     topic: Literal["agriculture_crops", "agricultural_machinery", "mining", "other"] = "other"
     topic_other: Optional[str] = None
     video_purpose: Literal["explain_mechanism", "how_to", "show_process", "before_after", "troubleshoot", "other"] = "other"
@@ -164,8 +186,14 @@ class CapCutCommentaryInterchange(BaseModel):
 class CommentaryRequest(BaseModel):
     video_url: Optional[str] = Field(default=None, description="URL video YouTube / TikTok")
     video_path: Optional[str] = Field(default=None, description="Đường dẫn file video cục bộ")
-    skill_id: str = Field(default="curiosity-explainer", description="ID phong cách biên kịch")
+    skill_id: str = Field(default="curiosity-explainer", description="ID giọng kể (skill chỉ quyết định giọng điệu, không quyết định cấu trúc)")
     template_id: Optional[Literal["hazard-rescue", "shock-hook", "how-it-works", "satisfying", "before-after", "story"]] = None
+    # Mô tả của người dùng: chỉ dùng ở chặng 2, ghi rõ chưa xác minh; KHÔNG đưa vào Vision.
+    description_subject: Optional[str] = Field(default=None, max_length=160, description="Máy/vật chính là gì (không bắt buộc)")
+    description_activity: Optional[str] = Field(default=None, max_length=160, description="Đang làm gì, ở đâu (không bắt buộc)")
+    description_focus: Optional[str] = Field(default=None, max_length=160, description="Điểm quan trọng nhất muốn người xem hiểu (không bắt buộc)")
+    narrator_mode: Optional[NarratorMode] = Field(default=None, description="Ngôi kể; None = dùng mặc định theo template")
+    # DEPRECATED (Batch 1): giữ lại để tương thích request cũ; code mới bỏ qua.
     topic: Literal["agriculture_crops", "agricultural_machinery", "mining", "other"] = "other"
     topic_other: Optional[str] = Field(default=None, max_length=160)
     video_purpose: Literal["explain_mechanism", "how_to", "show_process", "before_after", "troubleshoot", "other"] = "other"
@@ -180,6 +208,11 @@ class RewriteRequest(BaseModel):
     video_id: str = Field(..., description="ID video đã có sẵn Visual Timeline trong hệ thống")
     new_skill_id: str = Field(..., description="Skill mới muốn áp dụng")
     template_id: Optional[Literal["hazard-rescue", "shock-hook", "how-it-works", "satisfying", "before-after", "story"]] = None
+    description_subject: Optional[str] = Field(default=None, max_length=160)
+    description_activity: Optional[str] = Field(default=None, max_length=160)
+    description_focus: Optional[str] = Field(default=None, max_length=160)
+    narrator_mode: Optional[NarratorMode] = Field(default=None, description="Ngôi kể; None = dùng mặc định theo template")
+    # DEPRECATED (Batch 1): giữ lại để tương thích request cũ; code mới bỏ qua.
     topic: Literal["agriculture_crops", "agricultural_machinery", "mining", "other"] = "other"
     topic_other: Optional[str] = Field(default=None, max_length=160)
     video_purpose: Literal["explain_mechanism", "how_to", "show_process", "before_after", "troubleshoot", "other"] = "other"
@@ -215,6 +248,8 @@ class ProcessVideoResponse(BaseModel):
     template_recommendation: Optional[TemplateRecommendation] = None
     review_notes: List[str] = Field(default_factory=list)
     story_angle: Optional[str] = None
+    narrator_mode: Optional[str] = None
+    target_feeling: Optional[str] = None
     qa_metadata: dict = Field(default_factory=dict)
 
 
@@ -222,6 +257,11 @@ class GenerateCommentaryRequest(BaseModel):
     video_id: str
     skill_id: str = "curiosity-explainer"
     template_id: Optional[Literal["hazard-rescue", "shock-hook", "how-it-works", "satisfying", "before-after", "story"]] = None
+    description_subject: Optional[str] = Field(default=None, max_length=160)
+    description_activity: Optional[str] = Field(default=None, max_length=160)
+    description_focus: Optional[str] = Field(default=None, max_length=160)
+    narrator_mode: Optional[NarratorMode] = Field(default=None, description="Ngôi kể; None = dùng mặc định theo template")
+    # DEPRECATED (Batch 1): giữ lại để tương thích request cũ; code mới bỏ qua.
     topic: Literal["agriculture_crops", "agricultural_machinery", "mining", "other"] = "other"
     topic_other: Optional[str] = Field(default=None, max_length=160)
     video_purpose: Literal["explain_mechanism", "how_to", "show_process", "before_after", "troubleshoot", "other"] = "other"
@@ -254,6 +294,8 @@ class CommentaryGenerationResponse(BaseModel):
     review_notes: List[str] = Field(default_factory=list)
     source: Literal["manual", "recommended"] = "recommended"
     story_angle: str = ""
+    narrator_mode: Optional[str] = None
+    target_feeling: Optional[str] = None
     qa_metadata: dict = Field(default_factory=dict)
 
 

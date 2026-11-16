@@ -291,22 +291,14 @@ def process_video(request: CommentaryRequest):
         raise HTTPException(status_code=500, detail=f"Lỗi tiền xử lý video cục bộ: {str(e)}")
 
     # 2. Chặng 1: Bóc tách sự thật thị giác (Vision LLM ~1.000 tokens)
+    # Vision chạy mù: không nhận nhãn hay mô tả của người dùng.
     try:
         visual_timeline = vision_engine.extract_visual_timeline(
             video_id=video_id,
             contact_sheet_path=contact_sheet_path,
             audio_hint=audio_hint,
             duration_seconds=duration,
-            topic=request.topic,
-            topic_other=request.topic_other,
-            video_purpose=request.video_purpose,
-            video_purpose_other=request.video_purpose_other,
         )
-        # User selections are authoritative; Vision output cannot override them.
-        visual_timeline.topic = request.topic
-        visual_timeline.topic_other = request.topic_other
-        visual_timeline.video_purpose = request.video_purpose
-        visual_timeline.video_purpose_other = request.video_purpose_other
         # Lưu vào SQLite để dùng lại cho các lần Rewrite sau
         db.save_visual_timeline(visual_timeline)
     except Exception as e:
@@ -320,10 +312,10 @@ def process_video(request: CommentaryRequest):
             language=request.language,
             target_duration=duration,
             template_id=request.template_id,
-            topic=request.topic,
-            video_purpose=request.video_purpose,
-            topic_other=request.topic_other,
-            video_purpose_other=request.video_purpose_other,
+            description_subject=request.description_subject,
+            description_activity=request.description_activity,
+            description_focus=request.description_focus,
+            narrator_mode=request.narrator_mode,
         )
 
         # 4. Chặng 3: Sinh giọng đọc Voiceover TTS nếu được bật
@@ -362,8 +354,10 @@ def process_video(request: CommentaryRequest):
         raise HTTPException(status_code=500, detail=f"Lỗi biên soạn lời bình Chặng 2: {str(e)}")
 
     template_recommendation = commentary_engine.recommend_template(
-        request.skill_id, request.topic, request.video_purpose,
-        request.template_id, request.topic_other, request.video_purpose_other,
+        visual_timeline, request.template_id
+    )
+    narrator_mode, target_feeling, _feeling_rule = commentary_engine.resolve_narrator_and_feeling(
+        template_recommendation.template_id, request.narrator_mode
     )
     visual_timeline.selected_template_id = template_recommendation.template_id
     visual_timeline.template_recommendation_reason = template_recommendation.reason
@@ -386,18 +380,20 @@ def process_video(request: CommentaryRequest):
         },
         template_recommendation=template_recommendation,
         review_notes=script_review_notes + [
-            f"Phân tích được yêu cầu cho chủ đề: {request.topic_other if request.topic == 'other' and request.topic_other else request.topic.replace('_', ' ')}.",
-            f"Mục đích video: {request.video_purpose_other if request.video_purpose == 'other' and request.video_purpose_other else request.video_purpose.replace('_', ' ')}.",
+            f"Template: {template_recommendation.template_id} ({template_recommendation.source}). {template_recommendation.reason}",
+            f"Ngôi kể: {narrator_mode}; cảm giác mục tiêu: {target_feeling}.",
             "Các phát biểu kỹ thuật hoặc nguyên nhân không thể xác nhận từ hình/âm thanh cần được người dùng kiểm tra.",
         ],
-        story_angle=commentary_engine.choose_story_angle(visual_timeline, request.topic, request.video_purpose),
+        story_angle=commentary_engine.derive_story_angle(visual_timeline),
+        narrator_mode=narrator_mode,
+        target_feeling=target_feeling,
         qa_metadata={
-            "topic": request.topic,
-            "purpose": request.video_purpose,
             "template_id": template_recommendation.template_id,
             "template_source": template_recommendation.source,
             "template_version": "1.1.0",
-            "prompt_version": "baseline-m1-m6-v1",
+            "narrator_mode": narrator_mode,
+            "target_feeling": target_feeling,
+            "prompt_version": "simplified-batch1-v1",
             "model": settings.DEFAULT_TEXT_MODEL,
             "warnings_count": len(script_review_notes),
         },
@@ -411,13 +407,11 @@ def generate_script_from_saved_analysis(request: GenerateCommentaryRequest):
     if not visual_timeline:
         raise HTTPException(status_code=404, detail=f"Không tìm thấy phân tích cho video {request.video_id}.")
     recommendation = commentary_engine.recommend_template(
-        request.skill_id, request.topic, request.video_purpose, request.template_id,
-        request.topic_other, request.video_purpose_other,
+        visual_timeline, request.template_id
     )
-    visual_timeline.topic = request.topic
-    visual_timeline.topic_other = request.topic_other
-    visual_timeline.video_purpose = request.video_purpose
-    visual_timeline.video_purpose_other = request.video_purpose_other
+    narrator_mode, target_feeling, _feeling_rule = commentary_engine.resolve_narrator_and_feeling(
+        recommendation.template_id, request.narrator_mode
+    )
     visual_timeline.selected_template_id = recommendation.template_id
     visual_timeline.template_recommendation_reason = recommendation.reason
     visual_timeline.template_selection_source = recommendation.source
@@ -429,12 +423,13 @@ def generate_script_from_saved_analysis(request: GenerateCommentaryRequest):
             language=request.language,
             target_duration=visual_timeline.duration_seconds,
             template_id=recommendation.template_id,
-            topic=request.topic,
-            topic_other=request.topic_other,
-            video_purpose=request.video_purpose,
-            video_purpose_other=request.video_purpose_other,
+            description_subject=request.description_subject,
+            description_activity=request.description_activity,
+            description_focus=request.description_focus,
+            narrator_mode=request.narrator_mode,
         )
         notes = commentary_engine.validate_generated_script(script)
+        qa_metadata = {"template_id": recommendation.template_id, "template_source": recommendation.source, "template_version": "1.1.0", "narrator_mode": narrator_mode, "target_feeling": target_feeling, "prompt_version": "simplified-batch1-v1", "model": settings.DEFAULT_TEXT_MODEL, "warnings_count": len(notes)}
         if request.content_only:
             return CommentaryGenerationResponse(
                 video_id=request.video_id,
@@ -442,8 +437,10 @@ def generate_script_from_saved_analysis(request: GenerateCommentaryRequest):
                 template_recommendation=recommendation,
                 review_notes=notes,
                 source=recommendation.source,
-                story_angle=commentary_engine.choose_story_angle(visual_timeline, request.topic, request.video_purpose),
-                qa_metadata={"topic": request.topic, "purpose": request.video_purpose, "template_id": recommendation.template_id, "template_source": recommendation.source, "template_version": "1.1.0", "prompt_version": "baseline-m1-m6-v1", "model": settings.DEFAULT_TEXT_MODEL, "warnings_count": len(notes)},
+                story_angle=commentary_engine.derive_story_angle(visual_timeline),
+                narrator_mode=narrator_mode,
+                target_feeling=target_feeling,
+                qa_metadata=qa_metadata,
             )
         if request.enable_tts:
             tts_engine.synthesize_script(script=script, voice=request.tts_voice, speed=request.tts_speed)
@@ -456,8 +453,10 @@ def generate_script_from_saved_analysis(request: GenerateCommentaryRequest):
             video_id=request.video_id, capcut_json=script,
             template_recommendation=recommendation, review_notes=notes,
             source=recommendation.source,
-            story_angle=commentary_engine.choose_story_angle(visual_timeline, request.topic, request.video_purpose),
-            qa_metadata={"topic": request.topic, "purpose": request.video_purpose, "template_id": recommendation.template_id, "template_source": recommendation.source, "template_version": "1.1.0", "prompt_version": "baseline-m1-m6-v1", "model": settings.DEFAULT_TEXT_MODEL, "warnings_count": len(notes)},
+            story_angle=commentary_engine.derive_story_angle(visual_timeline),
+            narrator_mode=narrator_mode,
+            target_feeling=target_feeling,
+            qa_metadata=qa_metadata,
         )
     except HTTPException:
         raise
@@ -604,10 +603,10 @@ def rewrite_commentary(request: RewriteRequest):
             skill_id=request.new_skill_id,
             language=request.language or "vi",
             template_id=request.template_id,
-            topic=request.topic,
-            video_purpose=request.video_purpose,
-            topic_other=request.topic_other,
-            video_purpose_other=request.video_purpose_other,
+            description_subject=request.description_subject,
+            description_activity=request.description_activity,
+            description_focus=request.description_focus,
+            narrator_mode=request.narrator_mode,
         )
 
         audio_file_path = None
