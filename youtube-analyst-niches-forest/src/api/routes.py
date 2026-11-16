@@ -666,6 +666,13 @@ def generate_script_from_saved_analysis(request: GenerateCommentaryRequest):
         except Exception:
             scenes = None
     source_path = stored["source_video_path"] if stored else None
+    auto_applied_proposal = False
+    if scenes is None and needs_scene_selection(full_timeline.duration_seconds, max_seconds):
+        # Phân tích đã lưu từ trước khi có tính năng chọn cảnh: không có lựa
+        # chọn nào được lưu, nên tự áp dụng gợi ý thay vì viết kịch bản dài
+        # bằng toàn bộ video gốc.
+        scenes = propose_scenes(full_timeline, template_id=recommendation.template_id, max_seconds=max_seconds)
+        auto_applied_proposal = True
     try:
         if scenes is not None:
             active_timeline, trimmed_path, scenes_applied, scene_note = _apply_scene_selection(
@@ -690,6 +697,12 @@ def generate_script_from_saved_analysis(request: GenerateCommentaryRequest):
             *script.review_notes,
             *commentary_engine.validate_generated_script(script),
         ]))
+        if auto_applied_proposal:
+            notes = [
+                f"Video dài {full_timeline.duration_seconds:.0f}s và chưa có lựa chọn cảnh được lưu, "
+                f"nên hệ thống đã tự áp dụng gợi ý chọn cảnh (tổng {total_seconds(scenes_applied):.0f}s). "
+                "Chạy lại Bước 1 để xem và sửa danh sách cảnh trước khi viết kịch bản."
+            ] + notes
         qa_metadata = {"template_id": recommendation.template_id, "template_source": recommendation.source, "template_version": "1.1.0", "narrator_mode": narrator_mode, "target_feeling": target_feeling, "prompt_version": "simplified-batch1-v1", "model": settings.DEFAULT_TEXT_MODEL, "warnings_count": len(notes), "scenes_applied": [scene.model_dump() for scene in scenes_applied], "original_duration_seconds": full_timeline.duration_seconds}
         if request.content_only:
             return CommentaryGenerationResponse(

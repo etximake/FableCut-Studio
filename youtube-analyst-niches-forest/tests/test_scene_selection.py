@@ -425,6 +425,36 @@ def test_generate_script_rejects_over_budget_scenes(temp_db, monkeypatch):
     assert "vượt giới hạn" in response.json()["detail"]
 
 
+def test_generate_script_auto_applies_proposal_for_stale_analysis(temp_db, monkeypatch):
+    """Phân tích lưu từ trước khi có chọn cảnh: không có lựa chọn nào được
+    lưu, generate-script phải tự áp dụng gợi ý thay vì dùng toàn bộ video."""
+    from src.api import routes
+
+    temp_db.save_visual_timeline(make_timeline())
+    assert temp_db.get_scene_selection("vid_scenes") is None
+    monkeypatch.setattr(
+        routes.commentary_engine, "generate_commentary",
+        lambda **kwargs: make_script(duration=kwargs["visual_timeline"].duration_seconds),
+    )
+    monkeypatch.setattr(
+        routes.preprocessor, "concat_scenes",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("content_only must not concat")),
+    )
+    response = client.post("/api/v1/commentary/generate-script", json={
+        "video_id": "vid_scenes",
+        "skill_id": "curiosity-explainer",
+        "content_only": True,
+    })
+    assert response.status_code == 200
+    body = response.json()
+    assert body["capcut_json"]["video_metadata"]["duration_seconds"] <= 60.0
+    assert body["capcut_json"]["video_metadata"]["duration_seconds"] > 0
+    assert body["original_duration_seconds"] == 90.0
+    assert sum(s["end"] - s["start"] for s in body["scenes_applied"]) <= 60.0
+    assert any("tự áp dụng gợi ý chọn cảnh" in note for note in body["review_notes"])
+    assert temp_db.get_scene_selection("vid_scenes") is not None
+
+
 def test_generate_script_requires_source_video_for_media(temp_db, monkeypatch):
     from src.api import routes
 
