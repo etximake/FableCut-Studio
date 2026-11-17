@@ -1,6 +1,8 @@
-# FableCut Shorts Pipeline — Tài liệu Cải Tiến (`/docs`)
+# Tài liệu kỹ thuật FableCut-Studio (`/docs`)
 
 > **Trạng thái hiện tại**: Pipeline và QA đã được cập nhật; test và đồng bộ tài liệu đang được xác minh (`2026-11-12`).
+>
+> Tài liệu kỹ thuật đã hợp nhất về thư mục này ngày 2026-11-12 (trước đây nằm rải ở gốc repo, `fablecut-bundle/docs/` và `youtube-analyst-niches-forest/design/`).
 
 ---
 
@@ -8,15 +10,17 @@
 
 | Tệp | Nội dung |
 |---|---|
-| [`SHORTS-IMPROVEMENT-PLAN.md`](./SHORTS-IMPROVEMENT-PLAN.md) | **Kế hoạch cải tiến tổng thể 4 Pha**: kiến trúc, danh sách đã hoàn thành vs. tồn đọng, hợp đồng runtime đã kiểm chứng từ mã nguồn `FableCut`, đặc tả kỹ thuật chi tiết cho Schema / `convert.py` / `youtube-analyst-niches-forest` / `qa_check.py` / Skill, và quy trình test 6 template + batch rollout. |
+| [`HUONG-DAN-SU-DUNG.md`](./HUONG-DAN-SU-DUNG.md) | Hướng dẫn vận hành pipeline và cấu trúc các thư mục. |
+| [`PIPELINE-QA.md`](./PIPELINE-QA.md) | Kiểm tra pipeline: validate fixture, biên dịch ops, kiểm tra render. Chạy các lệnh từ thư mục `fablecut-bundle/`. |
 | [`VIEWER-VIDEO-LIMITATIONS.md`](./VIEWER-VIDEO-LIMITATIONS.md) | Giới hạn quan sát được từ video irrigation hiện có và project rev 41; chỉ là ghi chú chẩn đoán, không chỉnh sửa hoặc render lại tài sản nguồn. |
-| [`FOUR-PROJECT-DATA-TEMPLATE-ALIGNMENT-PLAN.md`](./FOUR-PROJECT-DATA-TEMPLATE-ALIGNMENT-PLAN.md) | Kế hoạch đồng bộ hợp đồng dữ liệu, template, backend, adapter, FableCut project/media và QA xuyên suốt bốn dự án. |
-| [`HUONG-DAN-SU-DUNG.md`](../../HUONG-DAN-SU-DUNG.md) | Hướng dẫn vận hành pipeline và cấu trúc bốn thư mục (đặt tại thư mục gốc `FableCut-Studio`). |
-| [`LINKS-DA-XAC-MINH.md`](./LINKS-DA-XAC-MINH.md) | Các liên kết và thông tin repo đã xác minh. |
-| [`PROJECT_MODELS.md`](./PROJECT_MODELS.md) | Ghi chú model và trạng thái kiểm chứng pipeline. |
 | [`CHECKLIST.md`](./CHECKLIST.md) | Checklist kiểm tra ban đầu; lưu ý các cảnh báo bảo mật vẫn cần xác minh. |
-| [`00-Huong-dan-OpenCode-9Router-FableCut.pdf`](./00-Huong-dan-OpenCode-9Router-FableCut.pdf) | Tài liệu PDF hướng dẫn OpenCode, 9Router và FableCut (được chuyển nguyên bản). |
-| [`README.txt`](./README.txt) | Chỉ dẫn đọc tài liệu và bắt đầu vận hành (tệp nằm cùng thư mục `docs/README.md`). |
+| [`PROJECT_MODELS.md`](./PROJECT_MODELS.md) | Ghi chú model và trạng thái kiểm chứng pipeline. |
+| [`LINKS-DA-XAC-MINH.md`](./LINKS-DA-XAC-MINH.md) | Các liên kết và thông tin repo đã xác minh. |
+| [`design/README.md`](./design/README.md) | Danh mục tài liệu thiết kế gốc của công cụ phân tích (6 file `00`–`05`); xem như lịch sử thiết kế, không phải đặc tả hiện hành. |
+| [`archive/SHORTS-IMPROVEMENT-PLAN.md`](./archive/SHORTS-IMPROVEMENT-PLAN.md) | **LƯU TRỮ, ĐÃ LỖI THỜI.** Kế hoạch cải tiến tổng thể 4 pha; các hạng mục trong đó phần lớn đã có trong code (xác minh 2026-11-12). Không dùng làm căn cứ triển khai. |
+| [`archive/FOUR-PROJECT-DATA-TEMPLATE-ALIGNMENT-PLAN.md`](./archive/FOUR-PROJECT-DATA-TEMPLATE-ALIGNMENT-PLAN.md) | **LƯU TRỮ.** Kế hoạch đồng bộ hợp đồng dữ liệu, template, backend, adapter, FableCut project/media và QA xuyên suốt bốn dự án. |
+| [`archive/README.txt`](./archive/README.txt) | **LƯU TRỮ.** Chỉ dẫn đọc tài liệu và bắt đầu vận hành theo bố cục cũ (note bàn giao 2026-11-10, giữ nguyên nội dung). |
+| [`00-Huong-dan-OpenCode-9Router-FableCut.pdf`](../fablecut-bundle/docs/00-Huong-dan-OpenCode-9Router-FableCut.pdf) | Tài liệu PDF hướng dẫn OpenCode, 9Router và FableCut (được chuyển nguyên bản). File duy nhất còn ở vị trí cũ vì connector không di dời được file nhị phân; nội dung không đổi. |
 
 ---
 

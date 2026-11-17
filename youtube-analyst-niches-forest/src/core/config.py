@@ -149,4 +149,17 @@ class DynamicSettings:
     def DEFAULT_COMMENTARY_SKILL(self) -> str:
         return self.get_var("DEFAULT_COMMENTARY_SKILL", "curiosity-explainer")
 
+    @property
+    def MAX_SHORT_SECONDS(self) -> float:
+        """Tổng thời lượng tối đa của các cảnh đã chọn khi làm Short.
+
+        Đổi bằng MAX_SHORT_SECONDS trong .env. Giá trị không hợp lệ hoặc
+        <= 0 thì dùng 60.
+        """
+        try:
+            value = float(self.get_var("MAX_SHORT_SECONDS", "60"))
+        except (TypeError, ValueError):
+            return 60.0
+        return value if value > 0 else 60.0
+
 settings = DynamicSettings()

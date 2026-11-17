@@ -209,6 +209,66 @@ class LocalVideoPreprocessor:
             guidance=guidance
         )
 
+    def concat_scenes(
+        self,
+        video_path: str,
+        scenes: list[tuple[float, float]],
+        output_path: Optional[str] = None,
+    ) -> str:
+        """Ghép các cảnh (mốc giây gốc) thành 1 clip liên tục bằng FFmpeg.
+
+        Re-encode để cắt chính xác từng khung hình tại mốc giây bất kỳ
+        (concat demuxer + copy chỉ cắt đúng keyframe). Âm thanh được ghép
+        cùng nếu video có audio stream; video không tiếng vẫn ghép được.
+        """
+        if not scenes:
+            raise ValueError("concat_scenes cần ít nhất 1 cảnh.")
+        if not output_path:
+            base_name = Path(video_path).stem
+            output_path = str(self.temp_dir / f"{base_name}_scenes.mp4")
+
+        info = self.get_video_info(video_path)
+        has_audio = info["has_audio"]
+
+        filter_parts: list[str] = []
+        for index, (start, end) in enumerate(scenes):
+            filter_parts.append(
+                f"[0:v]trim=start={start:.3f}:end={end:.3f},setpts=PTS-STARTPTS,"
+                f"scale=trunc(iw/2)*2:trunc(ih/2)*2[v{index}]"
+            )
+            if has_audio:
+                filter_parts.append(
+                    f"[0:a]atrim=start={start:.3f}:end={end:.3f},asetpts=PTS-STARTPTS[a{index}]"
+                )
+        concat_inputs = "".join(
+            f"[v{i}][a{i}]" if has_audio else f"[v{i}]" for i in range(len(scenes))
+        )
+        filter_parts.append(
+            f"{concat_inputs}concat=n={len(scenes)}:v=1:a={1 if has_audio else 0}[vout]"
+            + ("[aout]" if has_audio else "")
+        )
+        filter_complex = ";".join(filter_parts)
+
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", video_path,
+            "-filter_complex", filter_complex,
+            "-map", "[vout]",
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
+            "-pix_fmt", "yuv420p",
+            "-movflags", "+faststart",
+        ]
+        if has_audio:
+            cmd += ["-map", "[aout]", "-c:a", "aac", "-b:a", "192k"]
+        cmd.append(output_path)
+
+        logger.info(f"Concatenating {len(scenes)} scene(s): {' '.join(cmd)}")
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            logger.error(f"FFmpeg scene concat error: {result.stderr}")
+            raise RuntimeError(f"Ghép cảnh thất bại: {result.stderr.strip().splitlines()[-1] if result.stderr.strip() else 'ffmpeg error'}")
+        return output_path
+
     def process(self, video_path: str) -> Tuple[str, AudioHint, float]:
         """
         Quy trình xử lý hoàn chỉnh đầu vào:

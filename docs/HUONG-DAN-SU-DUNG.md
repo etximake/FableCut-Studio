@@ -7,9 +7,9 @@
 
 ## I. TỔNG QUAN KIẾN TRÚC & THƯ MỤC
 
-Ghi chú kiểm chứng người xem cho project irrigation rev 41: [`VIEWER-VIDEO-LIMITATIONS.md`](fablecut-bundle/docs/VIEWER-VIDEO-LIMITATIONS.md). Tài liệu chỉ mô tả render hiện có; không chỉnh project hoặc render lại.
+Ghi chú kiểm chứng người xem cho project irrigation rev 41: [`VIEWER-VIDEO-LIMITATIONS.md`](./VIEWER-VIDEO-LIMITATIONS.md). Tài liệu chỉ mô tả render hiện có; không chỉnh project hoặc render lại.
 
-Hệ thống được tổ chức theo nguyên tắc **tách bạch 4 thành phần** để an toàn dữ liệu, gom gọn file theo từng video và dễ dàng dọn dẹp theo lô (10–20 video):
+Hệ thống được tổ chức theo nguyên tắc **tách bạch các thành phần** để an toàn dữ liệu, gom gọn file theo từng video và dễ dàng dọn dẹp theo lô (10–20 video):
 
 ```text
 D:\HOANG HA\Deverlopper Software\FableCut-Studio\
@@ -23,24 +23,29 @@ D:\HOANG HA\Deverlopper Software\FableCut-Studio\
 │   ├── projects/                   # Lưu trữ các project của FableCut (quản lý bằng Archive/Delete)
 │   ├── analysis/                   # Cache proxy & frame tạm (có thể dọn an toàn)
 │   └── project.json                # Project đang mở trong FableCut
-└── fablecut-bundle/                # [Lớp 3 - CHẤT XÁM & ADAPTER]: Thư mục dự án này
-    ├── server.bat                  # Script bật / tắt / kiểm tra FableCut server (menu hoặc CLI)
-    ├── cleanup.bat                 # Script nhấp đúp mở menu / chạy nhanh dọn dẹp theo lô
-    ├── cleanup.py                  # Lõi script dọn dẹp an toàn theo lô 10–20 video
-    ├── adapter/
-    │   ├── convert.py              # Bộ chuyển đổi JSON -> ops & tự động đăng ký media/<video_id>/
-    │   └── final_patch_ops.json
-    ├── presets/
-    │   └── styles.json             # Thư viện preset giao diện chữ, font, hiệu ứng
-    ├── schema/
-    │   └── input_schema.json       # Bộ kiểm duyệt tính hợp lệ của kịch bản JSON
-    ├── examples/                   # Bộ dữ liệu mẫu (video stock, audio wav, json kịch bản)
-    ├── antigravity.json            # Cấu hình kết nối MCP cho Antigravity
-    ├── opencode.json               # Cấu hình kết nối MCP cho OpenCode
-    └── fablecut-bundle/docs/       # Tài liệu, checklist và nhật ký model
-        ├── PROJECT_MODELS.md
-        ├── CHECKLIST.md
-        └── VIEWER-VIDEO-LIMITATIONS.md
+├── fablecut-bundle/                # [Lớp 3 - CHẤT XÁM & ADAPTER]: Thư mục dự án này
+│   ├── server.bat                  # Script bật / tắt / kiểm tra FableCut server (menu hoặc CLI)
+│   ├── cleanup.bat                 # Script nhấp đúp mở menu / chạy nhanh dọn dẹp theo lô
+│   ├── cleanup.py                  # Lõi script dọn dẹp an toàn theo lô 10–20 video
+│   ├── adapter/
+│   │   ├── convert.py              # Bộ chuyển đổi JSON -> ops & tự động đăng ký media/<video_id>/
+│   │   └── final_patch_ops.json
+│   ├── presets/
+│   │   └── styles.json             # Thư viện preset giao diện chữ, font, hiệu ứng
+│   ├── schema/
+│   │   └── input_schema.json       # Bộ kiểm duyệt tính hợp lệ của kịch bản JSON
+│   ├── examples/                   # Bộ dữ liệu mẫu (video stock, audio wav, json kịch bản)
+│   ├── antigravity.json            # Cấu hình kết nối MCP cho Antigravity
+│   └── opencode.json               # Cấu hình kết nối MCP cho OpenCode
+└── docs/                           # Tài liệu kỹ thuật hợp nhất (checklist, nhật ký model, QA, thiết kế)
+    ├── HUONG-DAN-SU-DUNG.md        # Tài liệu này
+    ├── CHECKLIST.md
+    ├── PROJECT_MODELS.md
+    ├── PIPELINE-QA.md
+    ├── LINKS-DA-XAC-MINH.md
+    ├── VIEWER-VIDEO-LIMITATIONS.md
+    ├── design/                     # Tài liệu thiết kế gốc (00-05)
+    └── archive/                    # Kế hoạch cũ và note bàn giao (lưu trữ)
 ```
 
 ---

@@ -55,13 +55,15 @@ def validate_input_json(data, schema_path):
     previous_end = None
     for index, time_range in enumerate(ranges):
         start, end = time_range.get("start"), time_range.get("end")
-        if start is None or end is None or not (0 <= start < end) or (strict and end > duration):
+        if start is None or end is None or not (0 <= start < end) or (strict and (not math.isfinite(float(start)) or not math.isfinite(float(end)) or end > duration)):
             raise ValueError(f"Invalid time_range at segments/{index}/time_range: require 0 <= start < end <= duration_seconds ({duration}).")
         if strict and previous_end is not None and abs(start - previous_end) > 0.01:
             raise ValueError(f"Non-contiguous timeline at segments/{index}/time_range/start: expected {previous_end}, got {start}.")
         if previous_end is not None and start < previous_end - 0.01:
             raise ValueError(f"Overlapping timeline at segments/{index}/time_range/start.")
         previous_end = end
+    if strict and previous_end is not None and duration is not None and abs(previous_end - duration) > 0.25:
+        raise ValueError(f"Timeline does not cover full video duration: ends at {previous_end}, video is {duration} seconds.")
 
 
 def load_template(template_id_or_path, base_dir):
@@ -75,6 +77,30 @@ def load_template(template_id_or_path, base_dir):
     if t_path.exists():
         return load_json(t_path)
     return None
+
+
+def validate_template_compatibility(data, template_data):
+    """Reject unknown/mismatched beats and report template-duration mismatch explicitly."""
+    if not template_data:
+        return []
+    template_id = template_data.get("template_id")
+    declared = data.get("template_id") or data.get("video_metadata", {}).get("template_id")
+    if declared and declared != template_id:
+        raise ValueError(f"Selected template mismatch: input declares '{declared}', loaded '{template_id}'.")
+    beats = template_data.get("structure", {}).get("beats", [])
+    allowed_beats = {beat.get("beat") for beat in beats if beat.get("beat")}
+    segment_beats = {segment.get("beat") for segment in data.get("segments", []) if segment.get("beat")}
+    unknown = sorted(segment_beats - allowed_beats)
+    if unknown:
+        raise ValueError(f"Template '{template_id}' does not define beat(s): {', '.join(unknown)}.")
+    warnings = []
+    duration = float(data.get("video_metadata", {}).get("duration_seconds") or 0)
+    target = template_data.get("structure", {}).get("target_total_seconds") or []
+    if len(target) == 2 and duration and not (float(target[0]) <= duration <= float(target[1])):
+        warnings.append(
+            f"Video duration {duration:g}s is outside template '{template_id}' recommended range {target[0]}-{target[1]}s."
+        )
+    return warnings
 
 
 def _resolve_data_dir(data_dir=None):
@@ -512,6 +538,7 @@ def build_patch_ops(
     if video_media_id:
         source = media_by_id.get(video_media_id, {})
         source_duration = float(source.get("duration") or dur)
+        cut_index = 0  # SPEC-03: global cut counter for alternating zoom
         for idx, seg in enumerate(segments):
             tr = seg["time_range"]
             start, end = float(tr["start"]), min(float(tr["end"]), dur)
@@ -542,16 +569,24 @@ def build_patch_ops(
                 if filter_name not in filter_valid or (template_allow := (template_data or {}).get("allowed_effects_only", {}).get("filters")) and filter_name not in template_allow:
                     raise ValueError(f"Unsupported/disallowed filter '{filter_name}' at segments/{idx}/style/filter")
                 props = {"fit": "cover", "volume": video_volume, "speed": speed, "filterPreset": filter_name}
+                # SPEC-03: alternate scale per cut so the <=5s retention cuts read
+                # as visible wide/close rhythm. Even cuts use the base zoom (1.0
+                # when no explicit zoom); odd cuts punch in 4%. An explicit
+                # motion.zoom stays the base for its segment.
                 if motion.get("zoom"):
-                    zoom = float(motion["zoom"])
-                    if not 0.5 <= zoom <= 4:
+                    base_zoom = float(motion["zoom"])
+                    if not 0.5 <= base_zoom <= 4:
                         raise ValueError(f"zoom must be within [0.5,4] at segments/{idx}/style/motion/zoom")
-                    props["scale"] = zoom
+                else:
+                    base_zoom = 1.0
+                punch = 1.04 if cut_index % 2 == 1 else 1.0
+                props["scale"] = round(min(4.0, max(0.5, base_zoom * punch)), 3)
                 if motion.get("shake"):
                     props.update({"shake": min(100, max(0, float(motion["shake"]))), "shakeSpeed": 8})
                 add_clip({"id": f"v1_seg_{idx+1}_{part+1}", "kind": "video", "mediaId": video_media_id, "track": "V1", "start": round(cursor, 3), "in": round(source_in, 3), "duration": round(length, 3), "name": f"{seg.get('beat','Beat')} footage", "props": props})
                 cursor += length
                 part += 1
+                cut_index += 1
 
     # 3. Add audio voiceover clip on A1
     if audio_media_id:
@@ -822,6 +857,15 @@ def main():
     template_data = load_template(template_id, base_dir) if template_id else None
     if template_data:
         print(f"Loaded template: {template_data.get('template_id')} (v{template_data.get('version', '1.0.0')})")
+        try:
+            for warning in validate_template_compatibility(story_data, template_data):
+                print(f"WARNING: {warning}", file=sys.stderr)
+        except ValueError as exc:
+            print(f"TEMPLATE VALIDATION ERROR: {exc}", file=sys.stderr)
+            sys.exit(2)
+    elif template_id:
+        print(f"TEMPLATE VALIDATION ERROR: Unknown template '{template_id}'.", file=sys.stderr)
+        sys.exit(2)
 
     # Auto detect or register media IDs from media/<video_id>/
     video_media_id, audio_media_id, media_ops = resolve_media_and_ops(

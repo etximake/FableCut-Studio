@@ -40,7 +40,7 @@ Dung duong dan tuyet doi that tren may nay, khong de placeholder. Key trong file
 - Goi fablecut_status. Neu loi: bao cao nguyen van loi, kiem tra lai duong dan mcp-server.js va cong 7777.
 
 ## Buoc 5 - Ghim mo hinh theo chang
-- Chang 1 (doc anh luoi 3x3): ghim 1 mo hinh vision co tool calling, da test rieng truoc. Ghi ten mo hinh vao file PROJECT_MODELS.md cua du an.
+- Chang 1 (doc anh luoi 3x3): ghim 1 mo hinh vision co tool calling, da test rieng truoc. Ghi ten mo hinh vao file PROJECT_MODELS.md cua du an (hien dat tai docs/PROJECT_MODELS.md, thu muc docs/ o goc repo).
 - Chang 2 (viet loi binh + chon preset): ghim 1 mo hinh text re hon.
 - Tat fallback sang nhom mo hinh yeu hon cho chang 1.
 

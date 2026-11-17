@@ -1,3 +1,7 @@
+> **LƯU TRỮ — KẾ HOẠCH ĐÃ LỖI THỜI.** Các hạng mục Pha 3 trong kế hoạch này đã có sẵn trong code, xác minh ngày 2026-11-12 trong quá trình rà soát trước khi viết spec quy trình bán tự động. Không dùng tài liệu này làm căn cứ triển khai. Tài liệu hiện hành xem [`../README.md`](../README.md).
+
+---
+
 # Kế Hoạch Cải Tiến Pipeline YouTube Shorts 9:16 (`1080x1920`)
 
 > **Phiên bản kế hoạch**: `1.1.0` · **Cập nhật trạng thái**: `2026-11-12`  

@@ -1,3 +1,7 @@
+> **LƯU TRỮ — KẾ HOẠCH LỊCH SỬ.** Tài liệu này là kế hoạch đồng bộ viết trước khi triển khai; giữ lại để tra cứu, không phải tài liệu vận hành hiện hành. Tài liệu hiện hành xem [`../README.md`](../README.md).
+
+---
+
 # Kế hoạch đồng bộ dữ liệu và template giữa bốn dự án
 
 **Phạm vi:**

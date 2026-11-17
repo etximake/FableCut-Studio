@@ -1,10 +1,10 @@
 {
-  "name": "Agricultural irrigation and spraying in an orchard hillside",
+  "name": "Brush Cutter — upload_snaptik.vn_7518019806474571016 (Updated)",
   "width": 1080,
   "height": 1920,
   "fps": 30,
   "background": "#000000",
-  "revision": 41,
+  "revision": 67,
   "panSchema": 1,
   "folders": [],
   "tracks": [
@@ -39,718 +39,460 @@
   ],
   "media": [
     {
-      "id": "m_re9jh8n",
-      "name": "snaptik.vn_7611044561959324946.mp4",
+      "id": "m_1z638vc",
+      "name": "upload_snaptik.vn_7518019806474571016.mp4",
       "kind": "video",
-      "src": "/media/snaptik.vn_7611044561959324946/snaptik.vn_7611044561959324946.mp4",
-      "duration": 31.438,
+      "src": "/media/upload_snaptik.vn_7518019806474571016.mp4",
+      "duration": 14.767,
       "width": 576,
       "height": 1024,
       "folderId": null,
-      "size": 10030074,
+      "size": 7323666,
       "fps": 30,
       "codec": "h264",
       "audioCodec": "aac",
       "audioChannels": 2,
       "sampleRate": 44100,
-      "bitrate": 2552343
+      "bitrate": 3967674
     },
     {
-      "id": "m_stklyr6",
-      "name": "AI Video Commentary _ CapCut Engine Studio.wav",
+      "id": "m_6c9h3tt",
+      "name": "upload_snaptik.vn_7518019806474571016_voiceover.wav",
       "kind": "audio",
-      "src": "/media/snaptik.vn_7611044561959324946/AI%20Video%20Commentary%20_%20CapCut%20Engine%20Studio.wav",
-      "duration": 33.04,
+      "src": "/media/upload_snaptik.vn_7518019806474571016_voiceover.wav",
+      "duration": 15.164,
       "folderId": null,
-      "size": 1585986,
+      "size": 727894,
       "audioCodec": "pcm_s16le",
       "audioChannels": 1,
       "sampleRate": 24000,
-      "bitrate": 384010
+      "bitrate": 384023
     }
   ],
   "clips": [
     {
-      "id": "c_video_v1",
-      "mediaId": "m_re9jh8n",
+      "id": "fcpipe_v1_seg_1_1",
       "kind": "video",
+      "mediaId": "m_1z638vc",
       "track": "V1",
       "start": 0,
       "in": 0,
-      "duration": 31.438,
-      "name": "Background Stock",
+      "duration": 2.99,
+      "name": "QUESTION footage",
       "props": {
-        "x": 0,
-        "y": 0,
-        "scale": 1.2,
-        "rotation": 0,
-        "opacity": 1,
-        "volume": 0,
-        "pan": 0,
-        "anchorX": 0,
-        "anchorY": 0,
-        "trimStart": 0,
-        "trimEnd": 100,
-        "trimOffset": 0,
-        "autoOrient": false,
-        "pathOffset": 0,
-        "pathAlign": "start",
-        "motionBlur": 0,
-        "motionBlurSamples": 8,
-        "gain": 0,
-        "channelMode": "stereo",
-        "duck": 0,
-        "speed": 1,
-        "brightness": 100,
-        "contrast": 100,
-        "saturation": 100,
-        "hue": 0,
-        "blur": 0,
-        "grayscale": 0,
-        "sepia": 0,
-        "invert": 0,
-        "temperature": 0,
-        "tint": 0,
-        "vignette": 0,
-        "filterPreset": "none",
         "fit": "cover",
-        "cropL": 0,
-        "cropT": 0,
-        "cropR": 0,
-        "cropB": 0,
-        "flipH": false,
-        "flipV": false,
-        "cornerRadius": 0,
-        "blend": "normal",
-        "chromaKey": "",
-        "chromaTolerance": 26,
-        "chromaSoftness": 12,
-        "bgRemove": false,
-        "shake": 0,
-        "shakeSpeed": 8,
-        "rgbSplit": 0,
-        "grain": 0,
-        "text": "Title",
-        "fontSize": 72,
-        "color": "#ffffff",
-        "color2": "",
-        "font": "Segoe UI",
-        "bold": true,
-        "italic": false,
-        "weight": 0,
-        "align": "center",
-        "letterSpacing": 0,
-        "lineHeight": 1.2,
-        "uppercase": false,
-        "textShadow": 12,
-        "glow": 0,
-        "glowColor": "",
-        "textAnim": "none",
-        "wordRate": 0.15,
-        "direction": "auto",
-        "highlightColor": "#ffd166",
-        "strokeWidth": 0,
-        "strokeColor": "#000000",
-        "bgColor": "#000000",
-        "bgOpacity": 0,
-        "boxW": 0,
-        "boxH": 0,
-        "boxFit": false,
-        "vAlign": "middle",
-        "grade": {
-          "lift": [
-            0,
-            0,
-            0,
-            -0.015
-          ],
-          "gamma": [
-            0,
-            0,
-            0,
-            0.11
-          ],
-          "gain": [
-            -0.1074,
-            0.0504,
-            -0.1827,
-            0
-          ]
-        }
+        "volume": 0,
+        "speed": 1,
+        "filterPreset": "none",
+        "scale": 1.02
       }
     },
     {
-      "id": "c_audio_a1",
-      "mediaId": "m_stklyr6",
+      "id": "fcpipe_v1_seg_2_1",
+      "kind": "video",
+      "mediaId": "m_1z638vc",
+      "track": "V1",
+      "start": 2.99,
+      "in": 2.99,
+      "duration": 3.58,
+      "name": "STEP_1 footage",
+      "props": {
+        "fit": "cover",
+        "volume": 0,
+        "speed": 1,
+        "filterPreset": "none",
+        "scale": 1.092
+      },
+      "transitionIn": {
+        "type": "slide-left",
+        "duration": 0.35
+      }
+    },
+    {
+      "id": "fcpipe_v1_seg_3_1",
+      "kind": "video",
+      "mediaId": "m_1z638vc",
+      "track": "V1",
+      "start": 6.57,
+      "in": 6.57,
+      "duration": 3.26,
+      "name": "STEP_2 footage",
+      "props": {
+        "fit": "cover",
+        "volume": 0,
+        "speed": 1,
+        "filterPreset": "none",
+        "scale": 1.05
+      },
+      "transitionIn": {
+        "type": "slide-left",
+        "duration": 0.35
+      }
+    },
+    {
+      "id": "fcpipe_v1_seg_4_1",
+      "kind": "video",
+      "mediaId": "m_1z638vc",
+      "track": "V1",
+      "start": 9.83,
+      "in": 9.83,
+      "duration": 4.936667,
+      "name": "STEP_3_RESULT footage",
+      "props": {
+        "fit": "cover",
+        "volume": 0,
+        "speed": 1,
+        "filterPreset": "none",
+        "scale": 1.04
+      },
+      "transitionIn": {
+        "type": "fade",
+        "duration": 0.35
+      }
+    },
+    {
+      "id": "fcpipe_c_audio_a1",
       "kind": "audio",
+      "mediaId": "m_6c9h3tt",
       "track": "A1",
       "start": 0,
       "in": 0,
-      "duration": 31.438,
+      "duration": 14.766667,
       "name": "Voiceover Audio",
       "props": {
-        "x": 0,
-        "y": 0,
-        "scale": 1,
-        "rotation": 0,
-        "opacity": 1,
-        "volume": 1.56,
-        "pan": 0,
-        "anchorX": 0,
-        "anchorY": 0,
-        "trimStart": 0,
-        "trimEnd": 100,
-        "trimOffset": 0,
-        "autoOrient": false,
-        "pathOffset": 0,
-        "pathAlign": "start",
-        "motionBlur": 0,
-        "motionBlurSamples": 8,
-        "gain": 0,
-        "channelMode": "stereo",
-        "duck": 0,
-        "speed": 1,
-        "brightness": 100,
-        "contrast": 100,
-        "saturation": 100,
-        "hue": 0,
-        "blur": 0,
-        "grayscale": 0,
-        "sepia": 0,
-        "invert": 0,
-        "temperature": 0,
-        "tint": 0,
-        "vignette": 0,
-        "filterPreset": "none",
-        "fit": "contain",
-        "cropL": 0,
-        "cropT": 0,
-        "cropR": 0,
-        "cropB": 0,
-        "flipH": false,
-        "flipV": false,
-        "cornerRadius": 0,
-        "blend": "normal",
-        "chromaKey": "",
-        "chromaTolerance": 26,
-        "chromaSoftness": 12,
-        "bgRemove": false,
-        "shake": 0,
-        "shakeSpeed": 8,
-        "rgbSplit": 0,
-        "grain": 0,
-        "text": "Title",
-        "fontSize": 72,
-        "color": "#ffffff",
-        "color2": "",
-        "font": "Segoe UI",
-        "bold": true,
-        "italic": false,
-        "weight": 0,
-        "align": "center",
-        "letterSpacing": 0,
-        "lineHeight": 1.2,
-        "uppercase": false,
-        "textShadow": 12,
-        "glow": 0,
-        "glowColor": "",
-        "textAnim": "none",
-        "wordRate": 0.15,
-        "direction": "auto",
-        "highlightColor": "#ffd166",
-        "strokeWidth": 0,
-        "strokeColor": "#000000",
-        "bgColor": "#000000",
-        "bgOpacity": 0,
-        "boxW": 0,
-        "boxH": 0,
-        "boxFit": false,
-        "vAlign": "middle"
+        "volume": 1
       }
     },
     {
-      "id": "c_text_seg_1",
-      "mediaId": null,
       "kind": "text",
-      "track": "V2",
+      "mediaId": null,
+      "track": "V3",
       "start": 0,
-      "in": 0,
-      "duration": 4.16,
-      "name": "Text Seg 1: HOOK",
+      "duration": 2.99,
+      "name": "Caption",
       "props": {
-        "x": 0,
-        "y": 320,
-        "scale": 1,
-        "rotation": 0,
-        "opacity": 1,
-        "volume": 1,
-        "pan": 0,
-        "anchorX": 0,
-        "anchorY": 0,
-        "trimStart": 0,
-        "trimEnd": 100,
-        "trimOffset": 0,
-        "autoOrient": false,
-        "pathOffset": 0,
-        "pathAlign": "start",
-        "motionBlur": 120,
-        "motionBlurSamples": 8,
-        "gain": 0,
-        "channelMode": "stereo",
-        "duck": 0,
-        "speed": 1,
-        "brightness": 100,
-        "contrast": 100,
-        "saturation": 100,
-        "hue": 0,
-        "blur": 0,
-        "grayscale": 0,
-        "sepia": 0,
-        "invert": 0,
-        "temperature": 0,
-        "tint": 0,
-        "vignette": 0,
-        "filterPreset": "none",
-        "fit": "contain",
-        "cropL": 0,
-        "cropT": 0,
-        "cropR": 0,
-        "cropB": 0,
-        "flipH": false,
-        "flipV": false,
-        "cornerRadius": 0,
-        "blend": "normal",
-        "chromaKey": "",
-        "chromaTolerance": 26,
-        "chromaSoftness": 12,
-        "bgRemove": false,
-        "shake": 0,
-        "shakeSpeed": 8,
-        "rgbSplit": 0,
-        "grain": 0,
-        "text": "IRRIGATING STEEP HILLS",
-        "fontSize": 76,
+        "font": "Archivo Black",
         "color": "#ffffff",
-        "color2": "",
-        "font": "Bebas Neue",
-        "bold": true,
-        "italic": false,
-        "weight": 0,
-        "align": "center",
-        "letterSpacing": 0,
-        "lineHeight": 1.2,
-        "uppercase": true,
-        "textShadow": 16,
-        "glow": 0,
-        "glowColor": "",
-        "textAnim": "word-pop",
-        "wordRate": 0.18,
-        "direction": "auto",
         "highlightColor": "#ffd166",
-        "strokeWidth": 6,
+        "uppercase": true,
+        "strokeWidth": 10,
         "strokeColor": "#000000",
-        "bgColor": "#000000",
-        "bgOpacity": 0,
-        "boxW": 0,
-        "boxH": 0,
-        "boxFit": false,
-        "vAlign": "middle"
-      },
-      "keyframes": {
-        "scale": [
-          {
-            "t": 0,
-            "v": 0
-          },
-          {
-            "t": 0.2187,
-            "v": 1.12,
-            "ease": "ease-out"
-          },
-          {
-            "t": 0.35,
-            "v": 1
-          },
-          {
-            "t": 2.34,
-            "v": 1.52
-          }
+        "textShadow": 12,
+        "textAnim": "highlight",
+        "text": "Got thick brush\non the track?\nThis machine\ntackles it.",
+        "fontSize": 70,
+        "y": 422,
+        "wordTimes": [
+          [
+            0,
+            0.23
+          ],
+          [
+            0.23,
+            0.552
+          ],
+          [
+            0.552,
+            0.874
+          ],
+          [
+            0.874,
+            1.058
+          ],
+          [
+            1.058,
+            1.288
+          ],
+          [
+            1.288,
+            1.656
+          ],
+          [
+            1.656,
+            1.932
+          ],
+          [
+            1.932,
+            2.346
+          ],
+          [
+            2.346,
+            2.76
+          ],
+          [
+            2.76,
+            2.99
+          ]
         ],
-        "opacity": [
-          {
-            "t": 0,
-            "v": 0
-          },
-          {
-            "t": 0.105,
-            "v": 1
-          }
-        ]
-      }
+        "caption": true,
+        "captionStyle": "highlight"
+      },
+      "id": "c_z6nwnqk"
     },
     {
-      "id": "c_text_seg_2",
-      "mediaId": null,
       "kind": "text",
-      "track": "V2",
-      "start": 4.5,
-      "in": 0,
-      "duration": 11.65,
-      "name": "Text Seg 2: BUILD_UP",
+      "mediaId": null,
+      "track": "V3",
+      "start": 2.99,
+      "duration": 3.58,
+      "name": "Caption",
       "props": {
-        "x": 0,
-        "y": 320,
-        "scale": 1,
-        "rotation": 0,
-        "opacity": 1,
-        "volume": 1,
-        "pan": 0,
-        "anchorX": 0,
-        "anchorY": 0,
-        "trimStart": 0,
-        "trimEnd": 100,
-        "trimOffset": 0,
-        "autoOrient": false,
-        "pathOffset": 0,
-        "pathAlign": "start",
-        "motionBlur": 180,
-        "motionBlurSamples": 8,
-        "gain": 0,
-        "channelMode": "stereo",
-        "duck": 0,
-        "speed": 1,
-        "brightness": 100,
-        "contrast": 100,
-        "saturation": 100,
-        "hue": 0,
-        "blur": 0,
-        "grayscale": 0,
-        "sepia": 0,
-        "invert": 0,
-        "temperature": 0,
-        "tint": 0,
-        "vignette": 0,
-        "filterPreset": "none",
-        "fit": "contain",
-        "cropL": 0,
-        "cropT": 0,
-        "cropR": 0,
-        "cropB": 0,
-        "flipH": false,
-        "flipV": false,
-        "cornerRadius": 0,
-        "blend": "normal",
-        "chromaKey": "",
-        "chromaTolerance": 26,
-        "chromaSoftness": 12,
-        "bgRemove": false,
-        "shake": 0,
-        "shakeSpeed": 8,
-        "rgbSplit": 0,
-        "grain": 0,
-        "text": "HIGH PRESSURE PHYSICS",
-        "fontSize": 76,
+        "font": "Archivo Black",
         "color": "#ffffff",
-        "color2": "",
-        "font": "Bebas Neue",
-        "bold": true,
-        "italic": false,
-        "weight": 0,
-        "align": "center",
-        "letterSpacing": 0,
-        "lineHeight": 1.2,
-        "uppercase": true,
-        "textShadow": 16,
-        "glow": 0,
-        "glowColor": "",
-        "textAnim": "word-pop",
-        "wordRate": 0.18,
-        "direction": "auto",
         "highlightColor": "#ffd166",
-        "strokeWidth": 6,
+        "uppercase": true,
+        "strokeWidth": 10,
         "strokeColor": "#000000",
-        "bgColor": "#000000",
-        "bgOpacity": 0,
-        "boxW": 0,
-        "boxH": 0,
-        "boxFit": false,
-        "vAlign": "middle"
-      },
-      "keyframes": {
-        "scale": [
-          {
-            "t": 0,
-            "v": 0
-          },
-          {
-            "t": 0.2187,
-            "v": 1.12,
-            "ease": "ease-out"
-          },
-          {
-            "t": 0.35,
-            "v": 1
-          },
-          {
-            "t": 3.142,
-            "v": 1.65
-          }
+        "textShadow": 12,
+        "textAnim": "highlight",
+        "text": "Hold the handle\nsteady and guide\nit along the\novergrown edge.",
+        "fontSize": 70,
+        "y": 422,
+        "wordTimes": [
+          [
+            0,
+            0.2942
+          ],
+          [
+            0.2942,
+            0.5395
+          ],
+          [
+            0.5395,
+            0.9318
+          ],
+          [
+            0.9318,
+            1.3241
+          ],
+          [
+            1.3241,
+            1.5693
+          ],
+          [
+            1.5693,
+            1.9126
+          ],
+          [
+            1.9126,
+            2.1088
+          ],
+          [
+            2.1088,
+            2.4521
+          ],
+          [
+            2.4521,
+            2.6973
+          ],
+          [
+            2.6973,
+            3.2367
+          ],
+          [
+            3.2367,
+            3.58
+          ]
         ],
-        "opacity": [
-          {
-            "t": 0,
-            "v": 0
-          },
-          {
-            "t": 0.105,
-            "v": 1
-          }
-        ]
-      }
+        "caption": true,
+        "captionStyle": "highlight"
+      },
+      "id": "c_nrog3b3"
     },
     {
-      "id": "c_text_seg_3",
-      "mediaId": null,
       "kind": "text",
-      "track": "V2",
-      "start": 17.5,
-      "in": 0,
-      "duration": 5.4,
-      "name": "Text Seg 3: CLIMAX",
+      "mediaId": null,
+      "track": "V3",
+      "start": 6.57,
+      "duration": 3.26,
+      "name": "Caption",
       "props": {
-        "x": 0,
-        "y": 320,
-        "scale": 1,
-        "rotation": 0,
-        "opacity": 1,
-        "volume": 1,
-        "pan": 0,
-        "anchorX": 0,
-        "anchorY": 0,
-        "trimStart": 0,
-        "trimEnd": 100,
-        "trimOffset": 0,
-        "autoOrient": false,
-        "pathOffset": 0,
-        "pathAlign": "start",
-        "motionBlur": 0,
-        "motionBlurSamples": 8,
-        "gain": 0,
-        "channelMode": "stereo",
-        "duck": 0,
-        "speed": 1,
-        "brightness": 100,
-        "contrast": 100,
-        "saturation": 100,
-        "hue": 0,
-        "blur": 0,
-        "grayscale": 0,
-        "sepia": 0,
-        "invert": 0,
-        "temperature": 0,
-        "tint": 0,
-        "vignette": 0,
-        "filterPreset": "none",
-        "fit": "contain",
-        "cropL": 0,
-        "cropT": 0,
-        "cropR": 0,
-        "cropB": 0,
-        "flipH": false,
-        "flipV": false,
-        "cornerRadius": 0,
-        "blend": "normal",
-        "chromaKey": "",
-        "chromaTolerance": 26,
-        "chromaSoftness": 12,
-        "bgRemove": false,
-        "shake": 0,
-        "shakeSpeed": 8,
-        "rgbSplit": 0,
-        "grain": 0,
-        "text": "EXTREME ATOMIZATION",
-        "fontSize": 76,
+        "font": "Archivo Black",
         "color": "#ffffff",
-        "color2": "",
-        "font": "Bebas Neue",
-        "bold": true,
-        "italic": false,
-        "weight": 0,
-        "align": "center",
-        "letterSpacing": 0,
-        "lineHeight": 1.2,
-        "uppercase": true,
-        "textShadow": 16,
-        "glow": 0,
-        "glowColor": "",
-        "textAnim": "word-pop",
-        "wordRate": 0.18,
-        "direction": "auto",
         "highlightColor": "#ffd166",
-        "strokeWidth": 6,
+        "uppercase": true,
+        "strokeWidth": 10,
         "strokeColor": "#000000",
-        "bgColor": "#000000",
-        "bgOpacity": 0,
-        "boxW": 0,
-        "boxH": 0,
-        "boxFit": false,
-        "vAlign": "middle"
-      },
-      "keyframes": {
-        "scale": [
-          {
-            "t": 0,
-            "v": 0
-          },
-          {
-            "t": 0.2187,
-            "v": 1.12,
-            "ease": "ease-out"
-          },
-          {
-            "t": 0.35,
-            "v": 1
-          },
-          {
-            "t": 1.935,
-            "v": 1.45
-          }
+        "textShadow": 12,
+        "textAnim": "highlight",
+        "text": "Keep moving\nforward; the\ncutting head\nworks through\nthe growth.",
+        "fontSize": 70,
+        "y": 422,
+        "wordTimes": [
+          [
+            0,
+            0.2643
+          ],
+          [
+            0.2643,
+            0.6168
+          ],
+          [
+            0.6168,
+            1.0573
+          ],
+          [
+            1.0573,
+            1.2776
+          ],
+          [
+            1.2776,
+            1.6741
+          ],
+          [
+            1.6741,
+            1.9384
+          ],
+          [
+            1.9384,
+            2.2468
+          ],
+          [
+            2.2468,
+            2.6432
+          ],
+          [
+            2.6432,
+            2.8635
+          ],
+          [
+            2.8635,
+            3.26
+          ]
         ],
-        "opacity": [
-          {
-            "t": 0,
-            "v": 0
-          },
-          {
-            "t": 0.105,
-            "v": 1
-          }
-        ]
-      }
+        "caption": true,
+        "captionStyle": "highlight"
+      },
+      "id": "c_0lx3iay"
     },
     {
-      "id": "c_text_seg_4",
-      "mediaId": null,
       "kind": "text",
-      "track": "V2",
-      "start": 26,
-      "in": 0,
-      "duration": 5.438,
-      "name": "Text Seg 4: PAYOFF",
+      "mediaId": null,
+      "track": "V3",
+      "start": 9.83,
+      "duration": 4.94,
+      "name": "Caption",
       "props": {
-        "x": 0,
-        "y": 320,
-        "scale": 1,
-        "rotation": 0,
-        "opacity": 1,
-        "volume": 1,
-        "pan": 0,
-        "anchorX": 0,
-        "anchorY": 0,
-        "trimStart": 0,
-        "trimEnd": 100,
-        "trimOffset": 0,
-        "autoOrient": false,
-        "pathOffset": 0,
-        "pathAlign": "start",
-        "motionBlur": 0,
-        "motionBlurSamples": 8,
-        "gain": 0,
-        "channelMode": "stereo",
-        "duck": 0,
-        "speed": 1,
-        "brightness": 100,
-        "contrast": 100,
-        "saturation": 100,
-        "hue": 0,
-        "blur": 0,
-        "grayscale": 0,
-        "sepia": 0,
-        "invert": 0,
-        "temperature": 0,
-        "tint": 0,
-        "vignette": 0,
-        "filterPreset": "none",
-        "fit": "contain",
-        "cropL": 0,
-        "cropT": 0,
-        "cropR": 0,
-        "cropB": 0,
-        "flipH": false,
-        "flipV": false,
-        "cornerRadius": 0,
-        "blend": "normal",
-        "chromaKey": "",
-        "chromaTolerance": 26,
-        "chromaSoftness": 12,
-        "bgRemove": false,
-        "shake": 0,
-        "shakeSpeed": 8,
-        "rgbSplit": 0,
-        "grain": 0,
-        "text": "PERFECT COVERAGE",
-        "fontSize": 76,
+        "font": "Archivo Black",
         "color": "#ffffff",
-        "color2": "",
-        "font": "Bebas Neue",
-        "bold": true,
-        "italic": false,
-        "weight": 0,
-        "align": "center",
-        "letterSpacing": 0,
-        "lineHeight": 1.2,
-        "uppercase": true,
-        "textShadow": 16,
-        "glow": 0,
-        "glowColor": "",
-        "textAnim": "word-pop",
-        "wordRate": 0.18,
-        "direction": "auto",
         "highlightColor": "#ffd166",
-        "strokeWidth": 6,
+        "uppercase": true,
+        "strokeWidth": 10,
         "strokeColor": "#000000",
-        "bgColor": "#000000",
-        "bgOpacity": 0,
-        "boxW": 0,
-        "boxH": 0,
-        "boxFit": false,
-        "vAlign": "middle"
-      },
-      "keyframes": {
-        "scale": [
-          {
-            "t": 0,
-            "v": 0
-          },
-          {
-            "t": 0.2187,
-            "v": 1.12,
-            "ease": "ease-out"
-          },
-          {
-            "t": 0.35,
-            "v": 1
-          },
-          {
-            "t": 1.663,
-            "v": 1.62
-          }
+        "textShadow": 12,
+        "textAnim": "highlight",
+        "text": "A lower, clearer\nstrip is left\nbehind. Take\nsteady passes;\nthis patch still\nneeds work.",
+        "fontSize": 70,
+        "y": 422,
+        "wordTimes": [
+          [
+            0,
+            0.1439
+          ],
+          [
+            0.1439,
+            0.5276
+          ],
+          [
+            0.5276,
+            0.9592
+          ],
+          [
+            0.9592,
+            1.295
+          ],
+          [
+            1.295,
+            1.4868
+          ],
+          [
+            1.4868,
+            1.7746
+          ],
+          [
+            1.7746,
+            2.2062
+          ],
+          [
+            2.2062,
+            2.494
+          ],
+          [
+            2.494,
+            2.8777
+          ],
+          [
+            2.8777,
+            3.3093
+          ],
+          [
+            3.3093,
+            3.5971
+          ],
+          [
+            3.5971,
+            3.9328
+          ],
+          [
+            3.9328,
+            4.2685
+          ],
+          [
+            4.2685,
+            4.6043
+          ],
+          [
+            4.6043,
+            4.94
+          ]
         ],
-        "opacity": [
-          {
-            "t": 0,
-            "v": 0
-          },
-          {
-            "t": 0.105,
-            "v": 1
-          }
-        ]
-      }
+        "caption": true,
+        "captionStyle": "highlight"
+      },
+      "id": "c_nmk8w8f"
     }
   ],
   "markers": [],
   "inPoint": null,
   "outPoint": null,
-  "disabledTracks": []
+  "disabledTracks": [],
+  "delivery": {
+    "preset": "youtube-shorts",
+    "width": 1080,
+    "height": 1920,
+    "fps": null,
+    "reframe": "fill",
+    "container": "mp4",
+    "video": {
+      "codec": "h264",
+      "encoder": "libx264",
+      "rate": "crf",
+      "crf": 18,
+      "bitrate": 12000,
+      "maxrate": null,
+      "keyint": 0.5,
+      "speed": "balanced",
+      "pixFmt": "yuv420p"
+    },
+    "audio": {
+      "codec": "aac",
+      "bitrate": 384,
+      "sampleRate": 48000,
+      "channels": 2,
+      "loudness": -14,
+      "truePeak": -1
+    },
+    "color": "bt709",
+    "filename": "{project}_shorts_{res}",
+    "metadata": {}
+  },
+  "master": {
+    "fx": [
+      {
+        "type": "limiter",
+        "ceiling": -1,
+        "release": 80
+      }
+    ]
+  }
 }

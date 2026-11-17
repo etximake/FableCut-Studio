@@ -1,3 +1,6 @@
+LUU TRU (2026-11-12): note ban giao goc ngay 2026-11-10, giu nguyen noi dung lich su.
+Bo cuc tai lieu da doi: xem docs/README.md o goc repo. Cac duong dan trong file nay la duong dan cu.
+
 BO TAI LIEU: OpenCode + 9Router + FableCut
 Ngay tao: 2026-11-10 | Dung cho kenh YouTube tieng Anh, AI voice
 

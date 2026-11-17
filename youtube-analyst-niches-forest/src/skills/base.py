@@ -1,10 +1,39 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import json
 
+# Chỉ các trường quan sát được mới đưa vào prompt chặng 2. Metadata gợi ý
+# (selected_template_id, ...) không bao giờ được đưa vào prompt.
+_TIMELINE_PROMPT_FIELDS = (
+    "video_id",
+    "duration_seconds",
+    "subject_matter",
+    "initial_state",
+    "action_timeline",
+    "final_outcome",
+    "evidence_signals",
+)
+
+_NARRATOR_RULES = {
+    "third_person": "Ngôi 3 khách quan: gọi chủ thể bằng tên/loại của nó, không dùng 'tôi', 'chúng ta', 'bạn' (tiếng Anh: không dùng 'I', 'we', 'you').",
+    "second_person_hook": "Ngôi 2 CHỈ ở beat đầu tiên (tối đa 1 câu gọi trực tiếp người xem); các beat còn lại dùng ngôi 3 khách quan.",
+    "minimal_narrator": "Tường thuật tối thiểu: mỗi beat tối đa 1 câu ngắn, không đặt câu hỏi, không bình luận cảm xúc thay người xem, để hình ảnh và tiếng hiện trường lên tiếng.",
+}
+
+_FEELING_LABELS = {
+    "curiosity": "Thu hút / tò mò",
+    "satisfaction": "Thỏa mãn",
+    "understanding": "Hiểu ra",
+}
+
+
 class BaseCommentarySkill(ABC):
-    """Lớp cơ sở cho mọi Skill biên kịch trong hệ thống"""
-    
+    """Lớp cơ sở cho mọi Skill biên kịch trong hệ thống.
+
+    Skill chỉ quyết định GIỌNG ĐIỆU. Cấu trúc beat do template quyết định,
+    ngôi kể và cảm giác mục tiêu là tham số riêng của prompt.
+    """
+
     skill_id: str
     display_name: str
     description: str
@@ -23,13 +52,72 @@ class BaseCommentarySkill(ABC):
         language: str = "vi",
         custom_header: str = "",
         template_spec: Dict[str, Any] = None,
-        template_id: str = None
+        template_id: str = None,
+        description_subject: str = None,
+        description_activity: str = None,
+        description_focus: str = None,
+        narrator_mode: str = "third_person",
+        target_feeling: str = None,
+        feeling_rule: str = "",
+        word_budget: int = None,
+        beat_budgets: Dict[str, int] = None
     ) -> str:
         header = custom_header or f"Hãy biên kịch một kịch bản lời bình CapCut cho video có thời lượng {duration} giây."
+        if word_budget is None:
+            word_budget = max(8, round(duration * self.target_wpm / 60))
+
         template_note = ""
+        beats = []
         if template_spec:
             beats = [item.get("beat") for item in template_spec.get("structure", {}).get("beats", []) if item.get("beat")]
-            template_note = f"\nTEMPLATE ĐÃ CHỌN ({template_id}): dùng đúng thứ tự beat {', '.join(beats)}; không đổi nội dung/voiceover để ép timeline vào template.\n"
+            purpose = template_spec.get("purpose", "")
+            target_total = template_spec.get("structure", {}).get("target_total_seconds") or []
+            beat_lines = []
+            for item in template_spec.get("structure", {}).get("beats", []):
+                if not item.get("beat"):
+                    continue
+                note = item.get("note", "")
+                target = item.get("target_seconds") or []
+                timing = f" (mốc gợi ý {target[0]}–{target[1]}s)" if len(target) == 2 else ""
+                beat_lines.append(f"- {item['beat']}{timing}: {note}")
+            use_when = "; ".join(template_spec.get("use_when", []) or [])
+            avoid_when = "; ".join(template_spec.get("avoid_when", []) or [])
+            target_line = (
+                f"Thời lượng khuyến nghị của template: {target_total[0]}–{target_total[1]}s; video này dài {duration}s."
+                if len(target_total) == 2 else ""
+            )
+            template_note = (
+                f"\nTEMPLATE ĐÃ CHỌN ({template_id}): {purpose}\n"
+                f"Dùng đúng thứ tự beat sau:\n" + "\n".join(beat_lines) + "\n"
+                f"{target_line}\n"
+                f"Dùng khi: {use_when}\nTránh khi: {avoid_when}\n"
+                "Viết lời bình theo đúng beat trên. Nếu 1 beat không có chất liệu trong timeline thì viết ngắn lại, không bịa chất liệu.\n"
+            )
+
+        narrator_rule = _NARRATOR_RULES.get(narrator_mode, _NARRATOR_RULES["third_person"])
+        feeling_label = _FEELING_LABELS.get(target_feeling, target_feeling or "")
+        narrator_block = f"\nNGÔI KỂ: {narrator_rule}\nGiữ đúng 1 ngôi kể trong toàn bộ video; bản dịch tiếng Việt giữ cùng ngôi kể.\n"
+        if feeling_label:
+            narrator_block += f"CẢM GIÁC MỤC TIÊU: {feeling_label}. {feeling_rule}\n"
+
+        description_lines = []
+        if description_subject:
+            description_lines.append(f"- Máy/vật chính: {description_subject}")
+        if description_activity:
+            description_lines.append(f"- Đang làm gì, ở đâu: {description_activity}")
+        if description_focus:
+            description_lines.append(f"- Điểm quan trọng nhất: {description_focus}")
+        description_block = ""
+        if description_lines:
+            description_block = (
+                "\nTHÔNG TIN NGƯỜI DÙNG CUNG CẤP (CHƯA XÁC MINH TỪ HÌNH ẢNH):\n"
+                + "\n".join(description_lines)
+                + "\nChỉ dùng để bổ sung bối cảnh không nhìn thấy được (tên máy, địa điểm, mục đích công việc). "
+                "Nếu mâu thuẫn với timeline quan sát được, ưu tiên timeline và không đưa thông tin mâu thuẫn vào lời bình.\n"
+            )
+
+        timeline_for_prompt = {k: visual_timeline.get(k) for k in _TIMELINE_PROMPT_FIELDS if k in visual_timeline}
+
         beat_template = ""
         if template_spec and beats:
             beat_template = ",\n".join(
@@ -51,11 +139,21 @@ class BaseCommentarySkill(ABC):
       "text_overlay": {{ "text": "...", "position": "TOP_CENTER", "style": "HIGHLIGHT_YELLOW" }},
       "sfx_cue": null, "visual_hint": "..."
     }}'''
+
+        budget_lines = ""
+        if beat_budgets:
+            budget_lines = "\nNgân sách từng beat: " + ", ".join(
+                f"{beat} khoảng {words} từ" for beat, words in beat_budgets.items()
+            ) + "."
+
         return f"""{header}
 {template_note}
-
+{narrator_block}
+{description_block}
 NHẬT KÝ HÀNH ĐỘNG THỰC TẾ (VISUAL ACTION TIMELINE):
-{json.dumps(visual_timeline, ensure_ascii=False, indent=2)}
+{json.dumps(timeline_for_prompt, ensure_ascii=False, indent=2)}
+
+NGÂN SÁCH TỪ: tổng khoảng {word_budget} từ cho video {duration} giây (tốc độ mục tiêu {float(self.target_wpm)} từ/phút).{budget_lines}
 
 QUY TẮC BẮT BUỘC VỀ DỊCH NGHĨA (voiceover_vi_translation):
 - Với mỗi phân đoạn, ngoài câu lời bình chính 'voiceover' (bằng ngôn ngữ {language.upper()}), BẮT BUỘC cung cấp thêm trường 'voiceover_vi_translation' bằng TIẾNG VIỆT tự nhiên, chân chất, chính xác nghĩa của câu thoại để người dùng đọc hiểu rõ ràng.
@@ -70,7 +168,7 @@ Yêu cầu xuất ra JSON duy nhất theo đúng cấu trúc CapCut Interchange 
     "duration_seconds": {duration},
     "skill_applied": "{self.skill_id}",
     "language": "{language}",
-    "total_words": 95,
+    "total_words": {word_budget},
     "average_wpm": {float(self.target_wpm)}
   }},
   "segments": [
@@ -79,6 +177,6 @@ Yêu cầu xuất ra JSON duy nhất theo đúng cấu trúc CapCut Interchange 
 }}
 """
 
-    def format_user_prompt(self, visual_timeline: Dict[str, Any], duration: float, language: str = "vi", template_spec: Dict[str, Any] = None, template_id: str = None) -> str:
+    def format_user_prompt(self, visual_timeline: Dict[str, Any], duration: float, language: str = "vi", template_spec: Dict[str, Any] = None, template_id: str = None, description_subject: str = None, description_activity: str = None, description_focus: str = None, narrator_mode: str = "third_person", target_feeling: str = None, feeling_rule: str = "", word_budget: int = None, beat_budgets: Dict[str, int] = None) -> str:
         """Định dạng User Prompt cho Chặng 2 mặc định dùng standard template"""
-        return self.build_standard_user_prompt(visual_timeline, duration, language, template_spec=template_spec, template_id=template_id)
+        return self.build_standard_user_prompt(visual_timeline, duration, language, template_spec=template_spec, template_id=template_id, description_subject=description_subject, description_activity=description_activity, description_focus=description_focus, narrator_mode=narrator_mode, target_feeling=target_feeling, feeling_rule=feeling_rule, word_budget=word_budget, beat_budgets=beat_budgets)

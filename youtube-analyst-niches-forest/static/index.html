@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/style.css?v=studio-layout-1">
 </head>
 <body>
   <!-- TOPBAR -->
@@ -24,19 +24,24 @@
         <span class="status-dot"></span>
         <span id="aiStatusText">AI Online</span>
       </div>
+      <div class="model-test-actions" aria-label="Kiểm tra model AI">
+        <button type="button" class="model-test-btn" data-model="text" onclick="testAiModel('text', this)">Test Text</button>
+        <button type="button" class="model-test-btn" data-model="vision" onclick="testAiModel('vision', this)">Test Vision</button>
+      </div>
       <a href="/docs" target="_blank" class="docs-link">📖 Swagger API Docs</a>
     </div>
   </header>
+  <div id="modelTestResult" class="model-test-result" role="status" aria-live="polite" hidden></div>
 
   <!-- MAIN 3-COLUMN STUDIO -->
   <main class="main-studio">
     
     <!-- CỘT 1: NHẬP VIDEO & CẤU HÌNH -->
-    <section class="panel">
+    <section class="panel input-panel">
       <div class="panel-header">
         <div class="panel-title">
-          <span>⚙️</span>
-          <span>Đầu vào & Persona</span>
+          <span class="workflow-step">01</span>
+          <span><span>⚙️ Bước 1: Video & mô tả</span><small>Tải video, mô tả ngắn (không bắt buộc), rồi phân tích</small></span>
         </div>
       </div>
       <div class="panel-body">
@@ -73,9 +78,62 @@
           </div>
         </div>
 
+        <!-- Mô tả của người dùng: chỉ dùng ở bước 2, không đưa vào Vision -->
         <div class="form-group">
-          <label class="form-label" for="templateSelect">Template dựng:</label>
-          <select id="templateSelect" class="form-control"><option value="">Tự động theo Skill</option></select>
+          <label class="form-label" for="descriptionSubjectInput">Mô tả video (không bắt buộc, chỉ viết điều bạn chắc chắn):</label>
+          <input id="descriptionSubjectInput" class="form-control" maxlength="160" placeholder="Máy/vật chính là gì? Ví dụ: máy cắt cỏ cầm tay" />
+          <input id="descriptionActivityInput" class="form-control" maxlength="160" placeholder="Đang làm gì, ở đâu? Ví dụ: đang dọn bụi rậm ở bờ ruộng" style="margin-top: 6px;" />
+          <input id="descriptionFocusInput" class="form-control" maxlength="160" placeholder="Điểm quan trọng nhất muốn người xem hiểu? Ví dụ: lưỡi cắt thay được trong 30 giây" style="margin-top: 6px;" />
+          <p class="form-hint">Mô tả chỉ bổ sung bối cảnh không nhìn thấy được (tên máy, địa điểm). Nếu mâu thuẫn với hình ảnh, hình ảnh thắng.</p>
+        </div>
+
+        <!-- Bước 2: chốt template + ngôi kể (hiện sau khi phân tích xong) -->
+        <div id="step2Section" style="display: none;">
+          <div class="form-group" id="sceneSection" style="display: none;">
+            <label class="form-label">Cảnh đã chọn (chỉ các cảnh này được ghép thành Short):</label>
+            <p class="form-hint" id="sceneIntro"></p>
+            <div id="sceneList"></div>
+            <p class="form-hint" id="sceneTotal" aria-live="polite"></p>
+            <p id="sceneWarning" class="template-warning" aria-live="polite" hidden></p>
+            <button type="button" class="btn-secondary" id="btnResetScenes" onclick="resetSceneProposal()">Khôi phục gợi ý của AI</button>
+            <p class="form-hint">Timeline ở cột giữa là video gốc. Bỏ tick để loại cảnh, sửa giờ để nới/hẹp cảnh; tổng không vượt giới hạn.</p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Bước 2: Chốt template dựng (AI gợi ý, bạn quyết định):</label>
+            <p id="templateRecommendationNote" class="form-hint" aria-live="polite"></p>
+            <div class="template-cards" id="templateCards"></div>
+            <p id="templateWarning" class="template-warning" aria-live="polite" hidden></p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="narratorSelect">Ngôi kể lời bình:</label>
+            <select id="narratorSelect" class="form-control">
+              <option value="third_person">Ngôi 3 khách quan (mặc định)</option>
+              <option value="second_person_hook">Ngôi 2 ở beat đầu, còn lại ngôi 3</option>
+              <option value="minimal_narrator">Tường thuật thưa, ít lời</option>
+            </select>
+          </div>
+
+          <div class="form-group" id="directionSection">
+            <label class="form-label">Bản Định hướng (LLM viết từ timeline, bạn duyệt/sửa):</label>
+            <p class="form-hint">Kịch bản sẽ tuân theo đúng bản này: câu hứa hẹn, khoảnh khắc chính, từng beat, chữ overlay và SFX. Tạo bản Định hướng sau khi chốt cảnh/template, sửa trực tiếp bên dưới rồi bấm "Viết kịch bản".</p>
+            <button type="button" class="btn-secondary" id="btnCreateDirection" onclick="createDirection()">Tạo bản Định hướng</button>
+            <div id="directionForm" style="display: none;">
+              <label class="form-label" for="directionPromise" style="margin-top: 10px;">Câu hứa hẹn của video:</label>
+              <input id="directionPromise" class="form-control" maxlength="300" />
+              <p class="form-hint" id="directionKeyMoment" aria-live="polite"></p>
+              <div id="directionBeats"></div>
+              <label class="form-label" for="directionSoundNote">Chỉ đạo âm thanh chung:</label>
+              <input id="directionSoundNote" class="form-control" maxlength="300" />
+              <p id="directionStatus" class="form-hint" aria-live="polite"></p>
+            </div>
+          </div>
+
+          <button type="button" class="btn-primary" id="btnGenerateScript" onclick="generateScriptFromAnalysis()">
+            <span>🎙️</span>
+            <span id="btnGenerateScriptText">Viết kịch bản theo template đã chốt</span>
+          </button>
         </div>
 
         <!-- Ngôn ngữ xuất lời bình -->
@@ -121,21 +179,21 @@
           </div>
         </div>
 
-        <!-- Nút bấm phân tích -->
-        <button type="button" class="btn-primary" id="btnProcess" onclick="submitVideoProcess()">
+        <!-- Nút bấm phân tích (bước 1) -->
+        <button type="button" class="btn-primary" id="btnAnalyze" onclick="analyzeVideo()">
           <span>⚡</span>
-          <span id="btnProcessText">Phân tích & Viết Lời bình</span>
+          <span id="btnAnalyzeText">Bước 1: Phân tích video</span>
         </button>
 
       </div>
     </section>
 
     <!-- CỘT 2: THỊ GIÁC & ÂM THANH (VISUAL TRUTH INSPECTOR) -->
-    <section class="panel">
+    <section class="panel inspector-panel">
       <div class="panel-header">
         <div class="panel-title">
-          <span>👁️</span>
-          <span>Thị giác & Âm thanh (Truth First)</span>
+          <span class="workflow-step">02</span>
+          <span><span>👁️ Kiểm tra nguồn sự thật</span><small>Khung hình, âm thanh và diễn biến đã nhận diện</small></span>
         </div>
         <span class="brand-badge" id="tokenSavingsBadge">Tiết kiệm 95% Token</span>
       </div>
@@ -165,16 +223,17 @@
         <div class="timeline-list" id="timelineList">
           <div class="empty-placeholder">Diễn biến theo từng giây sẽ hiển thị tại đây sau khi AI quan sát ảnh lưới.</div>
         </div>
+        <div id="reviewNotes" class="review-notes" hidden></div>
 
       </div>
     </section>
 
     <!-- CỘT 3: STUDIO BIÊN TẬP LỜI BÌNH & XUẤT CAPCUT -->
-    <section class="panel">
+    <section class="panel editor-panel">
       <div class="panel-header">
         <div class="panel-title">
-          <span>🎙️</span>
-          <span>Studio Biên tập Lời bình CapCut</span>
+          <span class="workflow-step">03</span>
+          <span><span>🎙️ Biên tập & xuất</span><small>Rà soát lời bình, nghe thử và xuất CapCut</small></span>
         </div>
         <span class="brand-badge" id="activeSkillBadge">Chưa chọn</span>
       </div>
@@ -268,6 +327,6 @@
   <!-- TOAST CONTAINER -->
   <div class="toast-container" id="toastContainer"></div>
 
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=batch2-1"></script>
 </body>
 </html>

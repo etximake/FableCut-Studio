@@ -1,5 +1,7 @@
 # BỘ TÀI LIỆU THIẾT KẾ: AI VIDEO COMMENTARY & CAPCUT ENGINE
 
+> **Tài liệu thiết kế gốc (lịch sử).** Bộ thiết kế này được viết trước khi triển khai; code hiện tại có thể đã đi xa hơn thiết kế này. Dùng để hiểu kiến trúc ban đầu, không dùng làm đặc tả hiện hành.
+
 Hệ thống tự động hóa thông minh tiếp nhận **1 video ngắn bất kỳ (30s – 60s, điển hình 40s – 50s)** không cần phụ đề, sử dụng công nghệ thị giác tiết kiệm token (Smart Contact Sheet) kết hợp bộ lọc âm thanh đứt đoạn (Audio Truncation Guard), phân tích diễn biến và tự động biên soạn **Lời bình (Voiceover) cuốn hút đa phong cách theo Skill** xuất thẳng sang định dạng **CapCut Interchange JSON**.
 
 ---

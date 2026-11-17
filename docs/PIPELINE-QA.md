@@ -1,5 +1,7 @@
 # Pipeline validation and QA
 
+> Run the commands below from the `fablecut-bundle/` directory (the one containing `adapter/`, `scripts/` and `examples/`).
+
 `examples/` is the read-only fixture set. Validation and compilation must not modify fixture files. Keep generated patch operation JSON in a temporary/output directory, not in `examples/`.
 
 ## Validate every input fixture

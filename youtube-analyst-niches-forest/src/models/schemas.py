@@ -30,6 +30,28 @@ class ActionBlock(BaseModel):
     visual_action: str = Field(..., description="Mô tả hành động thực tế diễn ra trên màn hình")
     observable_changes: str = Field(default="", description="Biến đổi vật lý/thị giác quan sát được")
     confidence: float = Field(default=0.9, ge=0.0, le=1.0)
+    evidence_source: Literal["observed", "heard", "inferred", "unknown"] = Field(
+        default="unknown", description="Nguồn căn cứ của sự kiện"
+    )
+
+# Ngôi kể và cảm giác mục tiêu (Batch 1 — luồng đơn giản):
+# ngôi kể là tham số riêng, nhất quán cả video; cảm giác suy ra từ template.
+NarratorMode = Literal["third_person", "second_person_hook", "minimal_narrator"]
+TargetFeeling = Literal["curiosity", "satisfaction", "understanding"]
+
+
+class EvidenceSignals(BaseModel):
+    """Các tín hiệu cấu trúc mà Vision quan sát được trực tiếp từ hình ảnh.
+
+    Chỉ dùng để GỢI Ý template theo decision tree trong templates/index.json.
+    Mọi tín hiệu mặc định False; Vision chỉ bật khi quan sát được rõ ràng.
+    """
+    has_transformation: bool = False
+    has_hazard_or_breakdown: bool = False
+    has_distinct_steps: bool = False
+    has_surprising_fact: bool = False
+    has_person_story: bool = False
+    process_is_main_appeal: bool = False
 
 class VisualActionTimeline(BaseModel):
     """Bản tường thuật sự thật khách quan của video theo mốc giây thực"""
@@ -39,7 +61,28 @@ class VisualActionTimeline(BaseModel):
     initial_state: str = Field(default="", description="Trạng thái bối cảnh ban đầu (0s - 5s)")
     action_timeline: List[ActionBlock] = Field(default_factory=list, description="Chuỗi hành động theo mốc giây")
     final_outcome: str = Field(..., description="Kết quả hoặc trạng thái cuối cùng của chủ thể")
-    recommended_skill: Optional[str] = Field(default="curiosity-explainer", description="Skill phù hợp nhất do AI đề xuất")
+    evidence_signals: EvidenceSignals = Field(default_factory=EvidenceSignals, description="Tín hiệu cấu trúc quan sát được, dùng để gợi ý template")
+    selected_template_id: Optional[str] = None
+    template_recommendation_reason: Optional[str] = None
+    template_selection_source: Optional[Literal["manual", "recommended"]] = None
+
+
+class TemplateRecommendation(BaseModel):
+    template_id: str
+    reason: str
+    source: Literal["manual", "recommended"]
+
+
+class SceneRange(BaseModel):
+    """Một cảnh được chọn từ video gốc, theo mốc giây GỐC.
+
+    Các cảnh được ghép thành 1 clip liên tục trước khi viết kịch bản, vì
+    converter bắt buộc timeline liền mạch; mốc giây trong kịch bản là mốc
+    giây của clip đã ghép (bắt đầu từ 0), không phải mốc giây gốc.
+    """
+    start: float = Field(..., ge=0.0, description="Giây bắt đầu trong video gốc")
+    end: float = Field(..., ge=0.0, description="Giây kết thúc trong video gốc")
+    reason: str = Field(default="", description="Vì sao cảnh này được chọn")
 
 # ==========================================
 # 3. CHẶNG 2: KỊCH BẢN LỜI BÌNH & CAPCUT INTERCHANGE V3
@@ -108,6 +151,13 @@ class CommentarySegment(BaseModel):
             return "PAYOFF"
         return "BUILD_UP"
 
+    @field_validator("sfx_cue", mode="before")
+    def normalize_sfx_cue(cls, v):
+        if isinstance(v, str):
+            # Convert string to SFXCue object
+            return SFXCue(suggested_sfx=v, start_offset=0.0, volume=0.85)
+        return v
+
 class CapCutMetadata(BaseModel):
     video_id: str
     title: str
@@ -132,16 +182,42 @@ class CapCutCommentaryInterchange(BaseModel):
     note: Optional[str] = None
     video_metadata: CapCutMetadata
     segments: List[CommentarySegment]
+    review_notes: List[str] = Field(default_factory=list, exclude=True)
 
 # ==========================================
 # 4. API REQUEST / RESPONSE MODELS
 # ==========================================
 
+class AnalyzeRequest(BaseModel):
+    """Bước 1 của luồng 2 bước (Batch 2): chỉ phân tích, không viết kịch bản."""
+    video_url: Optional[str] = Field(default=None, description="URL video YouTube / TikTok")
+    video_path: Optional[str] = Field(default=None, description="Đường dẫn file video cục bộ")
+
+
+class AnalyzeResponse(BaseModel):
+    status: Literal["SUCCESS"] = "SUCCESS"
+    video_id: str
+    contact_sheet_url: Optional[str] = Field(default=None, description="URL ảnh lưới 3x3 xem trước")
+    audio_hint: Optional[AudioHint] = Field(default=None, description="Thông tin bóc tách âm thanh")
+    visual_timeline: VisualActionTimeline
+    template_recommendation: TemplateRecommendation
+    narrator_mode: str
+    target_feeling: str
+    scene_proposal: List[SceneRange] = Field(default_factory=list, description="Cảnh AI gợi ý ghép thành Short (mốc giây gốc)")
+    max_scene_seconds: float = Field(default=60.0, description="Tổng thời lượng tối đa của các cảnh đã chọn")
+    needs_scene_selection: bool = Field(default=False, description="True khi video dài hơn max_scene_seconds")
+
+
 class CommentaryRequest(BaseModel):
     video_url: Optional[str] = Field(default=None, description="URL video YouTube / TikTok")
     video_path: Optional[str] = Field(default=None, description="Đường dẫn file video cục bộ")
-    skill_id: str = Field(default="curiosity-explainer", description="ID phong cách biên kịch")
-    template_id: Optional[str] = None
+    skill_id: str = Field(default="curiosity-explainer", description="ID giọng kể (skill chỉ quyết định giọng điệu, không quyết định cấu trúc)")
+    template_id: Optional[Literal["hazard-rescue", "shock-hook", "how-it-works", "satisfying", "before-after", "story"]] = None
+    # Mô tả của người dùng: chỉ dùng ở chặng 2, ghi rõ chưa xác minh; KHÔNG đưa vào Vision.
+    description_subject: Optional[str] = Field(default=None, max_length=160, description="Máy/vật chính là gì (không bắt buộc)")
+    description_activity: Optional[str] = Field(default=None, max_length=160, description="Đang làm gì, ở đâu (không bắt buộc)")
+    description_focus: Optional[str] = Field(default=None, max_length=160, description="Điểm quan trọng nhất muốn người xem hiểu (không bắt buộc)")
+    narrator_mode: Optional[NarratorMode] = Field(default=None, description="Ngôi kể; None = dùng mặc định theo template")
     language: str = Field(default="vi", description="Ngôn ngữ lời bình (vi / en)")
     target_duration: Optional[float] = Field(default=None, description="Thời lượng mục tiêu")
     enable_tts: bool = Field(default=True, description="Tự động tạo giọng đọc Voiceover TTS")
@@ -151,7 +227,11 @@ class CommentaryRequest(BaseModel):
 class RewriteRequest(BaseModel):
     video_id: str = Field(..., description="ID video đã có sẵn Visual Timeline trong hệ thống")
     new_skill_id: str = Field(..., description="Skill mới muốn áp dụng")
-    template_id: Optional[str] = None
+    template_id: Optional[Literal["hazard-rescue", "shock-hook", "how-it-works", "satisfying", "before-after", "story"]] = None
+    description_subject: Optional[str] = Field(default=None, max_length=160)
+    description_activity: Optional[str] = Field(default=None, max_length=160)
+    description_focus: Optional[str] = Field(default=None, max_length=160)
+    narrator_mode: Optional[NarratorMode] = Field(default=None, description="Ngôi kể; None = dùng mặc định theo template")
     language: Optional[str] = Field(default="vi", description="Ngôn ngữ lời bình")
     enable_tts: bool = Field(default=True, description="Tự động tạo lại giọng đọc Voiceover TTS")
     tts_voice: str = Field(default="am_adam", description="ID giọng đọc")
@@ -161,6 +241,14 @@ class TTSSynthesizeRequest(BaseModel):
     video_id: str = Field(..., description="ID video cần tạo giọng đọc")
     voice: str = Field(default="am_adam", description="ID giọng đọc")
     speed: float = Field(default=1.0, ge=0.5, le=2.0, description="Tốc độ đọc")
+
+class SaveScriptResponse(BaseModel):
+    """SPEC-01: kết quả lưu bản kịch bản người dùng đã sửa trong giao diện"""
+    status: str
+    video_id: str
+    saved_version: int = Field(description="ID dòng mới trong bảng commentary_scripts (cơ chế append, số càng lớn càng mới)")
+    saved_at: str = Field(description="Thời điểm lưu theo giờ UTC, ISO-8601")
+    segment_count: int
 
 class ProcessVideoResponse(BaseModel):
     status: str
@@ -172,3 +260,153 @@ class ProcessVideoResponse(BaseModel):
     voiceover_audio_url: Optional[str] = Field(default=None, description="URL file audio voiceover đã sinh")
     voiceover_audio_duration: Optional[float] = Field(default=None, description="Thời lượng file voiceover")
     token_usage: dict = Field(default_factory=dict)
+    template_recommendation: Optional[TemplateRecommendation] = None
+    review_notes: List[str] = Field(default_factory=list)
+    story_angle: Optional[str] = None
+    narrator_mode: Optional[str] = None
+    target_feeling: Optional[str] = None
+    qa_metadata: dict = Field(default_factory=dict)
+    scenes_applied: List[SceneRange] = Field(default_factory=list, description="Cảnh thực sự dùng cho kịch bản (mốc giây gốc)")
+
+
+class DirectionBeat(BaseModel):
+    """Một beat trong bản Định hướng: kế hoạch nội dung cho 1 beat của template.
+
+    Mốc giây tính theo timeline ĐANG DÙNG (sau khi dồn cảnh đã chọn về 0),
+    khớp với mốc giây trong kịch bản. LLM viết kịch bản phải tuân theo beat
+    này; bước kiểm tra đối chiếu kịch bản với bản Định hướng.
+    """
+
+    beat: str = Field(..., description="ID beat theo template, ví dụ HOOK, STEP_1")
+    purpose: str = Field(default="", max_length=300, description="Beat này phải truyền tải điều gì, 1 câu")
+    source_start: float = Field(default=0.0, ge=0.0, description="Bắt đầu vùng timeline beat này dựa vào")
+    source_end: float = Field(default=0.0, ge=0.0, description="Kết thúc vùng timeline beat này dựa vào")
+    key_evidence: str = Field(default="", max_length=300, description="Bằng chứng quan sát beat này phải bám vào")
+    overlay_text: str = Field(default="", max_length=80, description="Chữ overlay dự kiến; rỗng = không có chữ")
+    sfx_cue: Optional[str] = Field(default=None, max_length=80, description="Hiệu ứng âm thanh dự kiến; None = không SFX")
+    pace: Literal["slow", "normal", "brisk"] = Field(default="normal", description="Nhịp kể của beat này")
+
+
+class Direction(BaseModel):
+    """Bản Định hướng: một đối tượng duy nhất điều khiển mọi khâu sau phân tích.
+
+    Theo mẫu beats.json/storyboard.json đã chứng minh: LLM viết bản này từ
+    timeline + template, người dùng duyệt/sửa, kịch bản viết theo đúng nó.
+    """
+
+    video_id: str
+    template_id: str
+    promise: str = Field(default="", max_length=300, description="Một câu hứa hẹn của video")
+    key_moment_start: float = Field(default=0.0, ge=0.0)
+    key_moment_end: float = Field(default=0.0, ge=0.0)
+    key_moment_reason: str = Field(default="", max_length=300, description="Vì sao đây là khoảnh khắc chính")
+    beats: List[DirectionBeat] = Field(default_factory=list)
+    sound_note: str = Field(default="", max_length=300, description="Chỉ đạo âm thanh chung, ví dụ tiếng máy làm nền")
+    narrator_mode: Optional[str] = None
+    target_feeling: Optional[str] = None
+    source: Literal["llm", "fallback", "user"] = Field(default="llm", description="Bản này từ đâu ra")
+
+
+class DirectionRequest(BaseModel):
+    video_id: str
+    skill_id: str = "curiosity-explainer"
+    template_id: Optional[Literal["hazard-rescue", "shock-hook", "how-it-works", "satisfying", "before-after", "story"]] = None
+    description_subject: Optional[str] = Field(default=None, max_length=160)
+    description_activity: Optional[str] = Field(default=None, max_length=160)
+    description_focus: Optional[str] = Field(default=None, max_length=160)
+    narrator_mode: Optional[NarratorMode] = Field(default=None, description="Ngôi kể; None = dùng mặc định theo template")
+    scenes: Optional[List[SceneRange]] = Field(default=None, description="Cảnh đã chốt (mốc giây gốc); None = dùng lựa chọn đã lưu hoặc gợi ý")
+    max_seconds: Optional[float] = Field(default=None, gt=0.0, description="Tổng thời lượng tối đa của cảnh; None = dùng MAX_SHORT_SECONDS")
+    language: str = "vi"
+
+
+class DirectionResponse(BaseModel):
+    status: Literal["SUCCESS"] = "SUCCESS"
+    video_id: str
+    direction: Direction
+    template_recommendation: TemplateRecommendation
+    review_notes: List[str] = Field(default_factory=list)
+    scenes_applied: List[SceneRange] = Field(default_factory=list, description="Cảnh thực sự dùng cho bản Định hướng (mốc giây gốc)")
+    original_duration_seconds: Optional[float] = Field(default=None, description="Thời lượng video gốc trước khi chọn cảnh")
+
+
+class GenerateCommentaryRequest(BaseModel):
+    video_id: str
+    skill_id: str = "curiosity-explainer"
+    template_id: Optional[Literal["hazard-rescue", "shock-hook", "how-it-works", "satisfying", "before-after", "story"]] = None
+    description_subject: Optional[str] = Field(default=None, max_length=160)
+    description_activity: Optional[str] = Field(default=None, max_length=160)
+    description_focus: Optional[str] = Field(default=None, max_length=160)
+    narrator_mode: Optional[NarratorMode] = Field(default=None, description="Ngôi kể; None = dùng mặc định theo template")
+    scenes: Optional[List[SceneRange]] = Field(default=None, description="Cảnh đã chốt (mốc giây gốc); None = dùng lựa chọn đã lưu hoặc toàn bộ video")
+    max_seconds: Optional[float] = Field(default=None, gt=0.0, description="Tổng thời lượng tối đa của cảnh; None = dùng MAX_SHORT_SECONDS")
+    direction: Optional[Direction] = Field(default=None, description="Bản Định hướng đã duyệt/sửa; None = dùng bản đã lưu hoặc tự sinh")
+    language: str = "vi"
+    enable_tts: bool = False
+    content_only: bool = True
+    tts_voice: str = "am_adam"
+    tts_speed: float = Field(default=1.0, ge=0.5, le=2.0)
+
+
+class ExportRequest(BaseModel):
+    video_id: str = Field(min_length=1, max_length=128)
+    format: Literal["capcut_json", "srt", "srt_vi", "bundle_zip", "audio", "contact_sheet", "thumbnail", "video"] = "capcut_json"
+
+    @field_validator("video_id")
+    @classmethod
+    def validate_video_id(cls, value):
+        import re
+        if not re.fullmatch(r"[\w.-]+", value):
+            raise ValueError("video_id contains unsupported characters")
+        return value
+
+
+class CommentaryGenerationResponse(BaseModel):
+    status: Literal["SUCCESS"] = "SUCCESS"
+    video_id: str
+    capcut_json: CapCutCommentaryInterchange
+    template_recommendation: TemplateRecommendation
+    review_notes: List[str] = Field(default_factory=list)
+    source: Literal["manual", "recommended"] = "recommended"
+    story_angle: str = ""
+    narrator_mode: Optional[str] = None
+    target_feeling: Optional[str] = None
+    qa_metadata: dict = Field(default_factory=dict)
+    scenes_applied: List[SceneRange] = Field(default_factory=list, description="Cảnh thực sự dùng cho kịch bản (mốc giây gốc)")
+    original_duration_seconds: Optional[float] = Field(default=None, description="Thời lượng video gốc trước khi chọn cảnh")
+    direction: Optional[Direction] = Field(default=None, description="Bản Định hướng kịch bản đã tuân theo")
+
+
+class RewriteResponse(BaseModel):
+    status: Literal["SUCCESS"] = "SUCCESS"
+    video_id: str
+    capcut_json: CapCutCommentaryInterchange
+    review_notes: List[str] = Field(default_factory=list)
+
+
+class ActionBlockUpdate(BaseModel):
+    visual_action: Optional[str] = None
+    observable_changes: Optional[str] = None
+    confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    evidence_source: Optional[Literal["observed", "heard", "inferred", "unknown"]] = None
+
+
+class VisualTimelineUpdate(BaseModel):
+    events: dict[str, ActionBlockUpdate]
+
+
+class PartialRewriteRequest(BaseModel):
+    video_id: str
+    segment_index: int = Field(ge=0)
+    current_voiceover: Optional[str] = Field(default=None, max_length=2000)
+    instruction: Optional[str] = Field(default=None, max_length=400)
+    language: str = "vi"
+    skill_id: str = "curiosity-explainer"
+
+
+class PartialRewriteResponse(BaseModel):
+    status: Literal["SUCCESS"] = "SUCCESS"
+    video_id: str
+    segment_index: int
+    segment: CommentarySegment
+    review_note: str = "Đối chiếu nội dung mới với bằng chứng trước khi duyệt."

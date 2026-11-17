@@ -43,7 +43,29 @@ def validate_input(path, schema, strict=None):
         if prev is not None and start < prev - 0.01:
             raise ValueError(f"{path.name}: overlapping segments at {i}")
         prev = end
+    if is_strict and prev is not None and abs(prev-duration) > 0.25:
+        raise ValueError(f"{path.name}: timeline ends at {prev}, video duration is {duration}")
     return data
+
+
+def validate_template_compatibility(data, template_dir=None):
+    template_id = data.get("template_id") or data.get("video_metadata", {}).get("template_id")
+    if not template_id:
+        return []
+    root = Path(template_dir) if template_dir else ROOT / "presets" / "templates"
+    path = root / f"{template_id}.json"
+    if not path.is_file():
+        raise ValueError(f"Unknown template '{template_id}'.")
+    spec = json.loads(path.read_text(encoding="utf-8"))
+    beats = {b.get("beat") for b in spec.get("structure", {}).get("beats", []) if b.get("beat")}
+    unknown = sorted({s.get("beat") for s in data.get("segments", []) if s.get("beat")} - beats)
+    if unknown:
+        raise ValueError(f"Template '{template_id}' does not define beat(s): {', '.join(unknown)}.")
+    target = spec.get("structure", {}).get("target_total_seconds") or []
+    duration = float(data.get("video_metadata", {}).get("duration_seconds") or 0)
+    if len(target) == 2 and duration and not float(target[0]) <= duration <= float(target[1]):
+        return [f"Duration {duration:g}s is outside recommended range {target[0]}-{target[1]}s for {template_id}."]
+    return []
 
 
 def validate_ops(path):
@@ -168,10 +190,12 @@ def main():
         if args.all_examples:
             validate_template_assets()
             for p in sorted((ROOT/"examples").glob("*.json")):
-                validate_input(p,schema,strict=False if "legacy" in p.name or "upload_" in p.name else None)
+                data = validate_input(p,schema,strict=False if "legacy" in p.name or "upload_" in p.name else None)
+                for warning in validate_template_compatibility(data): print(f"WARN {p.name}: {warning}")
                 print(f"PASS input {p.name}")
         if args.input:
-            validate_input(args.input,schema)
+            data = validate_input(args.input,schema)
+            for warning in validate_template_compatibility(data): print(f"WARN {args.input.name}: {warning}")
             print(f"PASS input {args.input}")
         if args.ops:
             validate_ops(args.ops)

@@ -14,7 +14,8 @@ def test_all_examples_validate_without_modifying_fixtures():
     schema = json.loads((ROOT / "schema" / "input_schema.json").read_text(encoding="utf-8"))
     for fixture in sorted((ROOT / "examples").glob("*.json")):
         before = fixture.read_bytes()
-        qa.validate_input(fixture, schema, strict=False if "upload_" in fixture.name else None)
+        data = qa.validate_input(fixture, schema, strict=False if "upload_" in fixture.name else None)
+        qa.validate_template_compatibility(data)
         assert fixture.read_bytes() == before
 
 
@@ -38,6 +39,43 @@ def test_ops_reject_first_frame_hidden_text(tmp_path):
 
 def test_template_assets_resolve_to_library_fonts():
     qa.validate_template_assets()
+
+
+def test_template_compatibility_rejects_undefined_beats_and_warns_short_video():
+    valid_short = {
+        "template_id": "how-it-works",
+        "video_metadata": {"duration_seconds": 12},
+        "segments": [{"beat": "QUESTION"}],
+    }
+    warnings = qa.validate_template_compatibility(valid_short)
+    assert warnings and "outside recommended range" in warnings[0]
+
+    invalid = {
+        "template_id": "how-it-works",
+        "video_metadata": {"duration_seconds": 40},
+        "segments": [{"beat": "CLIMAX"}],
+    }
+    with pytest.raises(ValueError, match="does not define beat"):
+        qa.validate_template_compatibility(invalid)
+
+
+def test_strict_template_timeline_must_cover_full_duration():
+    schema = json.loads((ROOT / "schema" / "input_schema.json").read_text(encoding="utf-8"))
+    data = {
+        "schema_version": 3,
+        "format": "youtube-story-commentary-capcut",
+        "template_id": "how-it-works",
+        "video_metadata": {"video_id": "short", "duration_seconds": 30},
+        "segments": [{"beat": "QUESTION", "time_range": {"start": 0, "end": 20}, "voiceover": "x", "text_overlay": {"text": "x", "style": "CLEAN_WHITE"}}],
+    }
+    path = ROOT / "schema" / "input_schema.json"
+    class InMemoryInput:
+        name = "strict-short.json"
+        def read_text(self, encoding=None):
+            return json.dumps(data)
+
+    with pytest.raises(ValueError, match="timeline ends"):
+        qa.validate_input(InMemoryInput(), schema)
 
 
 def test_ops_reject_duplicate_transition_on_same_beat(tmp_path):
