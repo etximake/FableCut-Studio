@@ -16,6 +16,11 @@ Monorepo xây dựng video ngắn dọc 9:16 qua 4 tầng tách biệt: phân t�
 - **`fablecut-data/`** — Thư mục dữ liệu ngoài `FABLECUT_DATA_DIR` (`project.json`, `projects/`, `media/<video_id>/`, `exports/`, `analysis/`, `library/`). Dữ liệu runtime đã được gitignore; không ghi đè hoặc render lại các project/export hiện có trừ khi được yêu cầu rõ.
 - **`docs/`** — Tài liệu hợp nhất (`docs/PIPELINE-QA.md`, `docs/HUONG-DAN-SU-DUNG.md`, `docs/PROJECT_MODELS.md`). Coi `docs/archive/` và `docs/design/` là tài liệu lịch sử tham khảo.
 
+### Quy tắc nhánh (chốt 2026-11-17)
+- Repo chỉ có 2 nhánh: `main` (ổn định) và `dev` (làm việc). **Không tạo thêm nhánh nhỏ lẻ.**
+- Mọi thay đổi code đều làm trên `dev`, không commit trực tiếp lên `main`.
+- Merge `dev` → `main` chỉ sau khi chủ repo đã kiểm tra trên máy local và đồng ý. Không tự merge.
+
 ### Nguồn hướng dẫn chi tiết theo phân hệ
 - `fablecut-bundle/AGENTS.md` — Quy trình cài đặt và vận hành 9Router + OpenCode + FableCut (Tiếng Việt).
 - `FableCut/AGENTS.md` & `FableCut/CLAUDE.md` — Schema đầy đủ của FableCut, hợp đồng MCP tool, thuộc tính (props) và cơ chế compositor.
@@ -98,7 +103,7 @@ py -3.10 scripts/qa_check.py --render <path.mp4> --duration <seconds>   # Kiểm
 
 ### Kiểm thử Dịch vụ Phân tích (`youtube-analyst-niches-forest/`)
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q                         # Chạy toàn bộ 24 bài test backend
+.\.venv\Scripts\python.exe -m pytest -q                         # Chạy toàn bộ test backend (107 test tại 2026-11-17)
 .\.venv\Scripts\python.exe -m pytest tests/<file>.py -k <name>  # Chạy một bài test cụ thể
 ```
 

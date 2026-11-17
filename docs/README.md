@@ -1,6 +1,6 @@
 # Tài liệu kỹ thuật FableCut-Studio (`/docs`)
 
-> **Trạng thái hiện tại**: Pipeline và QA đã được cập nhật; test và đồng bộ tài liệu đang được xác minh (`2026-11-12`).
+> **Trạng thái hiện tại**: Luồng phân tích 2 bước, chọn cảnh và bản Định hướng đã triển khai trên nhánh `dev`, đang chờ kiểm tra trên máy local (`2026-11-17`).
 >
 > Tài liệu kỹ thuật đã hợp nhất về thư mục này ngày 2026-11-12 (trước đây nằm rải ở gốc repo, `fablecut-bundle/docs/` và `youtube-analyst-niches-forest/design/`).
 
@@ -28,7 +28,9 @@
 
 | Hạng mục | Trạng thái | Ghi chú |
 |---|---|---|
-| Tách export theo `video_id` & `cleanup_video_temp_files` (`process_video`) | **Xong** | `youtube-analyst-niches-forest` (24/24 pytest pass, 2026-11-12) |
+| Tách export theo `video_id` & `cleanup_video_temp_files` (`process_video`) | **Xong** | `youtube-analyst-niches-forest` (24/24 pytest pass tại thời điểm đó, 2026-11-12) |
+| Luồng analyst 2 bước, chọn cảnh, bản Định hướng (LLM viết, người duyệt) | **Trên nhánh `dev`, chờ kiểm tra local** | `youtube-analyst-niches-forest` (106 passed, 1 lỗi mạng Edge-TTS đã biết, 2026-11-17) |
+| Hợp nhất nhánh: repo chỉ còn `main` + `dev` | **Xong** | PR #4 (`dev` → `main`) là đầu mối gộp duy nhất; merge sau khi kiểm tra local |
 | `cleanup.py` + `cleanup.bat` (dọn lô an toàn) | **Xong** | Bảo vệ `exports/`, `library/`, `projects/`, media đang mở |
 | Bộ 6 template `v1.1.0` + `presets/styles.json` (14 styles) | **Xong** | Tại `presets/templates/` và `presets/styles.json` |
 | SVG `step-1..3.svg` + chuẩn hóa 21 SFX (`soft_chime.wav`) | **Xong** | Tại `fablecut-data/library/svg/` và `sfx/` |

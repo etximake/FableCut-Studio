@@ -1,5 +1,7 @@
 # Kế hoạch cải tiến tool: từ backend đến frontend
 
+> **Ghi chú trạng thái (2026-11-17):** Mục 1 dưới đây (cho người dùng chọn mục đích video trước khi phân tích) đã **không còn áp dụng**: các trường chọn mục đích/chủ đề đã bị xóa hẳn ngày 2026-11-16, thay bằng 3 ô mô tả tự do (chỉ dùng ở bước viết kịch bản, không đưa vào Vision), gợi ý template theo bằng chứng trong timeline, và bản Định hướng do LLM viết để người dùng duyệt trước khi viết kịch bản (2026-11-17). Đừng triển khai mục 1 theo nội dung cũ. Các mục còn lại vẫn đọc như định hướng, đối chiếu với code hiện tại trên nhánh `dev` trước khi làm theo.
+
 ## Mục tiêu
 
 Cải thiện pipeline tạo video về **nông nghiệp, máy móc nông nghiệp và đào mỏ** để nội dung đáng tin, ít lặp, có nhịp kể phù hợp mục đích xem; không mặc định giật gân, hài hước hay “thỏa mãn”.
