@@ -26,6 +26,9 @@ from src.models.schemas import (
     GenerateCommentaryRequest,
     SceneRange,
     CommentaryGenerationResponse,
+    Direction,
+    DirectionRequest,
+    DirectionResponse,
     ExportRequest,
     VisualTimelineUpdate,
     PartialRewriteRequest,
@@ -635,6 +638,103 @@ def process_video(request: CommentaryRequest):
     )
 
 
+def _resolve_confirmed_scenes(video_id, full_timeline, request_scenes, max_seconds, template_id):
+    """Cảnh sẽ dùng: request > đã lưu > gợi ý tự áp dụng (video dài, chưa từng chọn).
+
+    Trả về (scenes_or_None, source_path_or_None, auto_applied_proposal).
+    """
+    stored = db.get_scene_selection(video_id)
+    scenes = request_scenes
+    if scenes is None and stored:
+        try:
+            scenes = [SceneRange(**scene) for scene in stored["scenes"]]
+        except Exception:
+            scenes = None
+    source_path = stored["source_video_path"] if stored else None
+    auto_applied_proposal = False
+    if scenes is None and needs_scene_selection(full_timeline.duration_seconds, max_seconds):
+        # Phân tích đã lưu từ trước khi có tính năng chọn cảnh: không có lựa
+        # chọn nào được lưu, nên tự áp dụng gợi ý thay vì dùng toàn bộ video gốc.
+        scenes = propose_scenes(full_timeline, template_id=template_id, max_seconds=max_seconds)
+        auto_applied_proposal = True
+    return scenes, source_path, auto_applied_proposal
+
+
+def _load_stored_direction(video_id: str):
+    """Đọc bản Định hướng đã lưu; hỏng cấu trúc thì bỏ qua như chưa có."""
+    stored = db.get_direction(video_id)
+    if not stored:
+        return None
+    try:
+        return Direction(**stored)
+    except Exception:
+        return None
+
+
+@router.post("/commentary/direction", response_model=DirectionResponse)
+def create_direction(request: DirectionRequest):
+    """Tạo bản Định hướng từ timeline đã phân tích (LLM viết, người dùng duyệt sau).
+
+    Áp dụng cảnh đã chốt trước (không ghép media), rồi viết Định hướng trên
+    timeline đã dồn. Bản này được lưu để Bước 2 hiển thị/sửa và để
+    generate-script dùng làm ràng buộc.
+    """
+    full_timeline = db.get_visual_timeline(request.video_id)
+    if not full_timeline:
+        raise HTTPException(status_code=404, detail=f"Không tìm thấy phân tích cho video {request.video_id}.")
+    recommendation = commentary_engine.recommend_template(
+        full_timeline, request.template_id
+    )
+    narrator_mode, _target_feeling, _rule = commentary_engine.resolve_narrator_and_feeling(
+        recommendation.template_id, request.narrator_mode
+    )
+    max_seconds = request.max_seconds or settings.MAX_SHORT_SECONDS
+    scenes, source_path, auto_applied = _resolve_confirmed_scenes(
+        request.video_id, full_timeline, request.scenes, max_seconds, recommendation.template_id
+    )
+    try:
+        if scenes is not None:
+            active_timeline, _trimmed, scenes_applied, scene_note = _apply_scene_selection(
+                request.video_id, full_timeline, scenes, max_seconds, source_path,
+                build_media=False,
+            )
+        else:
+            active_timeline, scenes_applied, scene_note = full_timeline, [], ""
+        direction = commentary_engine.generate_direction(
+            visual_timeline=active_timeline,
+            skill_id=request.skill_id,
+            language=request.language,
+            target_duration=active_timeline.duration_seconds,
+            template_id=recommendation.template_id,
+            description_subject=request.description_subject,
+            description_activity=request.description_activity,
+            description_focus=request.description_focus,
+            narrator_mode=request.narrator_mode,
+            scene_note=scene_note or None,
+        )
+        db.save_direction(request.video_id, direction.model_dump())
+        notes = []
+        if direction.source == "fallback":
+            notes.append("LLM không trả được bản Định hướng nên đã dùng bản suy ra bằng quy tắc; hãy kiểm tra kỹ trước khi duyệt.")
+        if auto_applied:
+            notes.append(
+                f"Video dài {full_timeline.duration_seconds:.0f}s và chưa có lựa chọn cảnh được lưu, "
+                f"nên hệ thống đã tự áp dụng gợi ý chọn cảnh (tổng {total_seconds(scenes_applied):.0f}s)."
+            )
+        return DirectionResponse(
+            video_id=request.video_id,
+            direction=direction,
+            template_recommendation=recommendation,
+            review_notes=notes,
+            scenes_applied=scenes_applied,
+            original_duration_seconds=full_timeline.duration_seconds,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Không thể tạo bản Định hướng: {exc}")
+
+
 @router.post("/commentary/generate-script", response_model=CommentaryGenerationResponse)
 def generate_script_from_saved_analysis(request: GenerateCommentaryRequest):
     """Generate/re-generate script from a saved visual timeline without re-running Vision.
@@ -658,21 +758,9 @@ def generate_script_from_saved_analysis(request: GenerateCommentaryRequest):
     db.save_visual_timeline(full_timeline)
 
     max_seconds = request.max_seconds or settings.MAX_SHORT_SECONDS
-    stored = db.get_scene_selection(request.video_id)
-    scenes = request.scenes
-    if scenes is None and stored:
-        try:
-            scenes = [SceneRange(**scene) for scene in stored["scenes"]]
-        except Exception:
-            scenes = None
-    source_path = stored["source_video_path"] if stored else None
-    auto_applied_proposal = False
-    if scenes is None and needs_scene_selection(full_timeline.duration_seconds, max_seconds):
-        # Phân tích đã lưu từ trước khi có tính năng chọn cảnh: không có lựa
-        # chọn nào được lưu, nên tự áp dụng gợi ý thay vì viết kịch bản dài
-        # bằng toàn bộ video gốc.
-        scenes = propose_scenes(full_timeline, template_id=recommendation.template_id, max_seconds=max_seconds)
-        auto_applied_proposal = True
+    scenes, source_path, auto_applied_proposal = _resolve_confirmed_scenes(
+        request.video_id, full_timeline, request.scenes, max_seconds, recommendation.template_id
+    )
     try:
         if scenes is not None:
             active_timeline, trimmed_path, scenes_applied, scene_note = _apply_scene_selection(
@@ -681,6 +769,30 @@ def generate_script_from_saved_analysis(request: GenerateCommentaryRequest):
             )
         else:
             active_timeline, trimmed_path, scenes_applied, scene_note = full_timeline, None, [], ""
+        direction = request.direction
+        direction_note = None
+        if direction is not None:
+            direction.source = "user"
+            direction.video_id = request.video_id
+            direction.template_id = recommendation.template_id
+            db.save_direction(request.video_id, direction.model_dump())
+        else:
+            direction = _load_stored_direction(request.video_id)
+            if direction is None:
+                direction = commentary_engine.generate_direction(
+                    visual_timeline=active_timeline,
+                    skill_id=request.skill_id,
+                    language=request.language,
+                    target_duration=active_timeline.duration_seconds,
+                    template_id=recommendation.template_id,
+                    description_subject=request.description_subject,
+                    description_activity=request.description_activity,
+                    description_focus=request.description_focus,
+                    narrator_mode=request.narrator_mode,
+                    scene_note=scene_note or None,
+                )
+                db.save_direction(request.video_id, direction.model_dump())
+                direction_note = "Chưa có bản Định hướng được duyệt nên hệ thống đã tự sinh một bản; hãy tạo và duyệt Định hướng ở Bước 2 trước khi viết kịch bản."
         script = commentary_engine.generate_commentary(
             visual_timeline=active_timeline,
             skill_id=request.skill_id,
@@ -692,11 +804,15 @@ def generate_script_from_saved_analysis(request: GenerateCommentaryRequest):
             description_focus=request.description_focus,
             narrator_mode=request.narrator_mode,
             scene_note=scene_note or None,
+            direction=direction,
         )
         notes = list(dict.fromkeys([
             *script.review_notes,
             *commentary_engine.validate_generated_script(script),
+            *commentary_engine.validate_script_against_direction(script, direction),
         ]))
+        if direction_note:
+            notes = [direction_note] + notes
         if auto_applied_proposal:
             notes = [
                 f"Video dài {full_timeline.duration_seconds:.0f}s và chưa có lựa chọn cảnh được lưu, "
@@ -717,6 +833,7 @@ def generate_script_from_saved_analysis(request: GenerateCommentaryRequest):
                 qa_metadata=qa_metadata,
                 scenes_applied=scenes_applied,
                 original_duration_seconds=full_timeline.duration_seconds,
+                direction=direction,
             )
         if request.enable_tts:
             tts_engine.synthesize_script(script=script, voice=request.tts_voice, speed=request.tts_speed)
@@ -739,6 +856,7 @@ def generate_script_from_saved_analysis(request: GenerateCommentaryRequest):
             qa_metadata=qa_metadata,
             scenes_applied=scenes_applied,
             original_duration_seconds=full_timeline.duration_seconds,
+            direction=direction,
         )
     except HTTPException:
         raise
@@ -890,6 +1008,7 @@ def rewrite_commentary(request: RewriteRequest):
             description_focus=request.description_focus,
             narrator_mode=request.narrator_mode,
             scene_note=_build_scene_note(visual_timeline.duration_seconds, scenes_applied) or None,
+            direction=_load_stored_direction(request.video_id),
         )
 
         audio_file_path = None

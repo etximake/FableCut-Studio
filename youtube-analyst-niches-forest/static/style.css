@@ -1151,6 +1151,33 @@ input:checked + .slider:before {
   font-size: 0.8rem;
 }
 
+/* Bản Định hướng: mỗi beat là 1 khối có mục đích, overlay, SFX, nhịp. */
+.direction-beat-row {
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.direction-beat-row:last-child {
+  border-bottom: none;
+}
+
+.direction-beat-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.direction-beat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.direction-beat-grid .direction-pace {
+  grid-column: span 2;
+}
+
 .scene-dash {
   color: var(--text-muted);
 }

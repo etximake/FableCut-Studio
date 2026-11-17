@@ -242,7 +242,7 @@ def test_concat_scenes_silent_video(tmp_path):
 def test_generate_commentary_clamps_segments_to_duration(monkeypatch):
     engine = CommentaryScriptEngine()
 
-    def fake_llm(api_key, base_url, model, system_prompt, user_prompt):
+    def fake_llm(api_key, base_url, model, system_prompt, user_prompt, **kwargs):
         script = make_script(duration=30.0)
         dumped = script.model_dump()
         dumped["segments"] = [
@@ -300,7 +300,7 @@ def test_generate_commentary_uses_scene_note_and_active_duration(monkeypatch):
     engine = CommentaryScriptEngine()
     captured = {}
 
-    def fake_llm(api_key, base_url, model, system_prompt, user_prompt):
+    def fake_llm(api_key, base_url, model, system_prompt, user_prompt, **kwargs):
         captured["user"] = user_prompt
         script = make_script(duration=999.0)
         return script.model_dump()

@@ -218,7 +218,7 @@ def test_generate_commentary_uses_evidence_template_and_budget(monkeypatch):
     engine = CommentaryScriptEngine()
     captured = {}
 
-    def fake_llm(api_key, base_url, model, system_prompt, user_prompt):
+    def fake_llm(api_key, base_url, model, system_prompt, user_prompt, **kwargs):
         captured["system"] = system_prompt
         captured["user"] = user_prompt
         return {

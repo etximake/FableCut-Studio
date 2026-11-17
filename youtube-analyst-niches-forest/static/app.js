@@ -12,6 +12,8 @@ let selectedTemplateId = null;
 // Chọn cảnh: gợi ý của AI (để khôi phục) + giới hạn tổng thời lượng.
 let sceneProposal = [];
 let sceneMaxSeconds = 60;
+// Bản Định hướng đã tạo/chỉnh ở Bước 2 (null = chưa tạo).
+let currentDirection = null;
 // SPEC-01: theo dõi bản sửa chưa lưu trong giao diện review
 let isScriptDirty = false;
 let lastSavedAt = null;
@@ -100,8 +102,122 @@ function selectTemplate(templateId) {
   document.querySelectorAll(".template-card").forEach(c => {
     c.classList.toggle("active", c.dataset.templateId === templateId);
   });
+  // Đổi template thì bản Định hướng cũ (theo template cũ) không còn đúng.
+  if (currentDirection && currentDirection.template_id !== templateId) {
+    currentDirection = null;
+    document.getElementById("directionForm").style.display = "none";
+    const status = document.getElementById("directionStatus");
+    if (status) status.textContent = "";
+  }
   updateTemplateHint(currentAnalysis?.template_recommendation);
   updateTemplateWarning();
+}
+
+// --- Bản Định hướng: LLM viết, người dùng duyệt/sửa, kịch bản tuân theo ---
+
+async function createDirection() {
+  if (!currentAnalysis || !currentAnalysis.video_id) {
+    alert("Vui lòng phân tích 1 video ở bước 1 trước!");
+    return;
+  }
+  let confirmedScenes = null;
+  const sceneSection = document.getElementById("sceneSection");
+  if (sceneSection && sceneSection.style.display !== "none") {
+    const checked = readConfirmedScenes();
+    if (checked.errors.length > 0) {
+      alert("Chưa tạo được bản Định hướng: " + checked.errors[0]);
+      return;
+    }
+    confirmedScenes = checked.scenes;
+  }
+  const btn = document.getElementById("btnCreateDirection");
+  btn.disabled = true;
+  btn.textContent = "Đang tạo bản Định hướng...";
+  try {
+    const res = await fetch("/api/v1/commentary/direction", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        video_id: currentAnalysis.video_id,
+        skill_id: currentSelectedSkill,
+        template_id: selectedTemplateId,
+        ...getDescriptionPayload(),
+        narrator_mode: document.getElementById("narratorSelect")?.value || null,
+        scenes: confirmedScenes,
+        language: document.getElementById("languageSelect").value
+      })
+    });
+    if (!res.ok) {
+      const errData = await res.json();
+      throw new Error(errData.detail || "Tạo bản Định hướng thất bại.");
+    }
+    const data = await res.json();
+    currentDirection = data.direction;
+    renderDirectionForm();
+    const status = document.getElementById("directionStatus");
+    const origin = data.direction.source === "fallback"
+      ? "Bản này suy ra bằng quy tắc vì LLM không trả được; hãy kiểm tra kỹ."
+      : "Bản này do LLM viết từ timeline; bạn sửa trực tiếp rồi bấm \"Viết kịch bản\".";
+    status.textContent = [origin, ...(data.review_notes || [])].join(" ");
+    showToast("Đã có bản Định hướng! Kiểm tra và sửa trước khi viết kịch bản.");
+  } catch (err) {
+    alert("❌ Lỗi: " + (err.message || "Đã xảy ra lỗi không xác định."));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Tạo bản Định hướng";
+  }
+}
+
+function renderDirectionForm() {
+  const form = document.getElementById("directionForm");
+  if (!currentDirection) {
+    form.style.display = "none";
+    return;
+  }
+  form.style.display = "block";
+  document.getElementById("directionPromise").value = currentDirection.promise || "";
+  document.getElementById("directionKeyMoment").textContent =
+    `Khoảnh khắc chính (${currentDirection.key_moment_start.toFixed(1)}–${currentDirection.key_moment_end.toFixed(1)}s): ${currentDirection.key_moment_reason || ""}`;
+  document.getElementById("directionSoundNote").value = currentDirection.sound_note || "";
+  const container = document.getElementById("directionBeats");
+  container.innerHTML = "";
+  (currentDirection.beats || []).forEach((beat, index) => {
+    const row = document.createElement("div");
+    row.className = "direction-beat-row";
+    row.dataset.index = index;
+    row.innerHTML = `
+      <div class="direction-beat-head"><strong>${escapeHtml(beat.beat)}</strong> <span>${beat.source_start.toFixed(1)}–${beat.source_end.toFixed(1)}s</span></div>
+      <input class="form-control direction-purpose" maxlength="300" value="${escapeHtml(beat.purpose || "")}" aria-label="Mục đích beat ${escapeHtml(beat.beat)}" placeholder="Beat này phải truyền tải điều gì?" />
+      <div class="direction-beat-grid">
+        <input class="form-control direction-overlay" maxlength="80" value="${escapeHtml(beat.overlay_text || "")}" aria-label="Chữ overlay beat ${escapeHtml(beat.beat)}" placeholder="Chữ overlay (để trống = không có)" />
+        <input class="form-control direction-sfx" maxlength="80" value="${escapeHtml(beat.sfx_cue || "")}" aria-label="SFX beat ${escapeHtml(beat.beat)}" placeholder="SFX (để trống = không có)" />
+        <select class="form-control direction-pace" aria-label="Nhịp beat ${escapeHtml(beat.beat)}">
+          <option value="slow" ${beat.pace === "slow" ? "selected" : ""}>Nhịp chậm</option>
+          <option value="normal" ${beat.pace === "normal" ? "selected" : ""}>Nhịp thường</option>
+          <option value="brisk" ${beat.pace === "brisk" ? "selected" : ""}>Nhịp nhanh</option>
+        </select>
+      </div>
+      <p class="form-hint">Bằng chứng: ${escapeHtml(beat.key_evidence || "không rõ")}</p>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function readDirectionFromForm() {
+  if (!currentDirection) return null;
+  const direction = JSON.parse(JSON.stringify(currentDirection));
+  direction.promise = document.getElementById("directionPromise").value.trim();
+  direction.sound_note = document.getElementById("directionSoundNote").value.trim();
+  document.querySelectorAll("#directionBeats .direction-beat-row").forEach(row => {
+    const beat = direction.beats[Number(row.dataset.index)];
+    if (!beat) return;
+    beat.purpose = row.querySelector(".direction-purpose").value.trim();
+    beat.overlay_text = row.querySelector(".direction-overlay").value.trim();
+    const sfx = row.querySelector(".direction-sfx").value.trim();
+    beat.sfx_cue = sfx || null;
+    beat.pace = row.querySelector(".direction-pace").value;
+  });
+  return direction;
 }
 
 function updateTemplateWarning() {
@@ -506,6 +622,9 @@ async function analyzeVideo() {
     selectedTemplateId = data.template_recommendation?.template_id || null;
     lastSavedAt = null;
     isScriptDirty = false;
+    currentDirection = null;
+    document.getElementById("directionForm").style.display = "none";
+    document.getElementById("directionStatus").textContent = "";
 
     const narratorSelect = document.getElementById("narratorSelect");
     if (narratorSelect && data.narrator_mode) narratorSelect.value = data.narrator_mode;
@@ -600,6 +719,7 @@ async function generateScriptFromAnalysis() {
         ...getDescriptionPayload(),
         narrator_mode: document.getElementById("narratorSelect")?.value || null,
         scenes: confirmedScenes,
+        direction: readDirectionFromForm(),
         language: language,
         enable_tts: enableTts,
         tts_voice: ttsVoice,
@@ -1028,6 +1148,7 @@ async function handleQuickRewrite() {
         ...getDescriptionPayload(),
         narrator_mode: document.getElementById("narratorSelect")?.value || null,
         scenes: confirmedScenes,
+        direction: readDirectionFromForm(),
         language: language,
         enable_tts: enableTts,
         tts_voice: ttsVoice,

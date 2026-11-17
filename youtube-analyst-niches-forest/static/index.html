@@ -115,6 +115,21 @@
             </select>
           </div>
 
+          <div class="form-group" id="directionSection">
+            <label class="form-label">Bản Định hướng (LLM viết từ timeline, bạn duyệt/sửa):</label>
+            <p class="form-hint">Kịch bản sẽ tuân theo đúng bản này: câu hứa hẹn, khoảnh khắc chính, từng beat, chữ overlay và SFX. Tạo bản Định hướng sau khi chốt cảnh/template, sửa trực tiếp bên dưới rồi bấm "Viết kịch bản".</p>
+            <button type="button" class="btn-secondary" id="btnCreateDirection" onclick="createDirection()">Tạo bản Định hướng</button>
+            <div id="directionForm" style="display: none;">
+              <label class="form-label" for="directionPromise" style="margin-top: 10px;">Câu hứa hẹn của video:</label>
+              <input id="directionPromise" class="form-control" maxlength="300" />
+              <p class="form-hint" id="directionKeyMoment" aria-live="polite"></p>
+              <div id="directionBeats"></div>
+              <label class="form-label" for="directionSoundNote">Chỉ đạo âm thanh chung:</label>
+              <input id="directionSoundNote" class="form-control" maxlength="300" />
+              <p id="directionStatus" class="form-hint" aria-live="polite"></p>
+            </div>
+          </div>
+
           <button type="button" class="btn-primary" id="btnGenerateScript" onclick="generateScriptFromAnalysis()">
             <span>🎙️</span>
             <span id="btnGenerateScriptText">Viết kịch bản theo template đã chốt</span>

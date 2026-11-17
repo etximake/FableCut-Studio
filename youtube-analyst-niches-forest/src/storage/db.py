@@ -51,6 +51,13 @@ class DatabaseManager:
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS directions (
+                    video_id TEXT PRIMARY KEY,
+                    direction_json TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
             conn.commit()
 
     def save_visual_timeline(self, timeline: VisualActionTimeline):
@@ -116,6 +123,29 @@ class DatabaseManager:
                     "source_video_path": row["source_video_path"],
                     "trimmed_video_path": row["trimmed_video_path"],
                 }
+        return None
+
+    def save_direction(self, video_id: str, direction: Dict[str, Any]):
+        """Lưu bản Định hướng đã duyệt/sửa (1 bản mới nhất mỗi video)."""
+        with self._get_connection() as conn:
+            conn.execute("""
+                INSERT OR REPLACE INTO directions (video_id, direction_json)
+                VALUES (?, ?);
+            """, (
+                video_id,
+                json.dumps(direction, ensure_ascii=False),
+            ))
+            conn.commit()
+
+    def get_direction(self, video_id: str) -> Optional[Dict[str, Any]]:
+        with self._get_connection() as conn:
+            cursor = conn.execute(
+                "SELECT direction_json FROM directions WHERE video_id = ?;",
+                (video_id,),
+            )
+            row = cursor.fetchone()
+            if row:
+                return json.loads(row["direction_json"])
         return None
 
     def save_commentary_script(self, script: CapCutCommentaryInterchange) -> int:

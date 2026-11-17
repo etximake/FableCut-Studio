@@ -6,7 +6,13 @@ from openai import OpenAI
 from src.core.config import settings
 from src.core.utils import extract_json_from_response
 from src.skills.registry import registry
-from src.models.schemas import VisualActionTimeline, CapCutCommentaryInterchange, TemplateRecommendation
+from src.models.schemas import (
+    CapCutCommentaryInterchange,
+    Direction,
+    DirectionBeat,
+    TemplateRecommendation,
+    VisualActionTimeline,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +142,8 @@ class CommentaryScriptEngine:
         base_url: Optional[str],
         model: str,
         system_prompt: str,
-        user_prompt: str
+        user_prompt: str,
+        temperature: float = 0.7,
     ) -> Dict[str, Any]:
         client = OpenAI(api_key=api_key, base_url=base_url, timeout=60.0)
         messages = [
@@ -148,10 +155,37 @@ class CommentaryScriptEngine:
             model=model,
             messages=messages,
             response_format={"type": "json_object"},
-            temperature=0.7
+            temperature=temperature
         )
         content = response.choices[0].message.content
         return extract_json_from_response(content)
+
+    def _call_text_llm_with_backup(
+        self, system_prompt: str, user_prompt: str, temperature: float = 0.7
+    ) -> Dict[str, Any]:
+        """Gọi LLM chính, hỏng thì thử backup; cả hai hỏng thì raise."""
+        try:
+            return self._call_text_llm(
+                api_key=settings.OPENAI_API_KEY,
+                base_url=settings.OPENAI_BASE_URL,
+                model=settings.DEFAULT_TEXT_MODEL,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                temperature=temperature,
+            )
+        except Exception as e:
+            logger.warning(f"Primary Text LLM error: {e}")
+            if settings.BACKUP_OPENAI_API_KEY:
+                logger.info("Attempting Backup Text LLM...")
+                return self._call_text_llm(
+                    api_key=settings.BACKUP_OPENAI_API_KEY,
+                    base_url=settings.BACKUP_OPENAI_BASE_URL,
+                    model=settings.BACKUP_TEXT_MODEL,
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    temperature=temperature,
+                )
+            raise RuntimeError(f"Commentary Script Generation failed: {e}")
 
     def recommend_template(
         self,
@@ -232,6 +266,274 @@ class CommentaryScriptEngine:
         if timeline.final_outcome:
             parts.append(f"Kết quả cuối: {timeline.final_outcome}.")
         return " ".join(parts)
+
+    def _load_template_spec(self, template_id: str) -> Optional[Dict[str, Any]]:
+        bundle_root = Path(__file__).resolve().parents[2].parent / "fablecut-bundle"
+        template_path = bundle_root / "presets" / "templates" / f"{template_id}.json"
+        if template_path.is_file():
+            return json.loads(template_path.read_text(encoding="utf-8"))
+        return None
+
+    def _template_beats(self, template_spec: Optional[Dict[str, Any]]) -> list:
+        if template_spec:
+            beats = [
+                b for b in template_spec.get("structure", {}).get("beats", [])
+                if b.get("beat")
+            ]
+            if beats:
+                return beats
+        return [{"beat": beat} for beat in ("HOOK", "BUILD", "CLIMAX", "PAYOFF")]
+
+    def generate_direction(
+        self,
+        visual_timeline: VisualActionTimeline,
+        skill_id: str = "curiosity-explainer",
+        language: str = "vi",
+        target_duration: Optional[float] = None,
+        template_id: Optional[str] = None,
+        description_subject: Optional[str] = None,
+        description_activity: Optional[str] = None,
+        description_focus: Optional[str] = None,
+        narrator_mode: Optional[str] = None,
+        scene_note: Optional[str] = None,
+    ) -> Direction:
+        """LLM viết bản Định hướng từ timeline + template (mẫu beats.json/storyboard.json).
+
+        Bản này là kế hoạch duy nhất điều khiển kịch bản: promise, khoảnh
+        khắc chính, từng beat gắn với vùng timeline, overlay và SFX dự kiến.
+        LLM hỏng/trả JSON sai thì dùng bản fallback suy ra bằng quy tắc, để
+        pipeline không chết; bản fallback ghi rõ source="fallback".
+        """
+        skill = registry.get(skill_id)
+        duration = target_duration or visual_timeline.duration_seconds
+        recommendation = self.recommend_template(visual_timeline, template_id)
+        template_id = recommendation.template_id
+        narrator_mode, target_feeling, feeling_rule = self.resolve_narrator_and_feeling(
+            template_id, narrator_mode
+        )
+        template_spec = self._load_template_spec(template_id)
+        template_beats = self._template_beats(template_spec)
+        word_budget = compute_word_budget(duration, skill.target_wpm)
+
+        beat_lines = []
+        for beat in template_beats:
+            target = beat.get("target_seconds")
+            note = beat.get("note", "")
+            beat_lines.append(f"- {beat['beat']}: mục tiêu {target}s. {note}")
+        block_lines = []
+        for block in visual_timeline.action_timeline or []:
+            tr = block.time_range
+            block_lines.append(
+                f"- {tr.start:.1f}–{tr.end:.1f}s: {block.visual_action}"
+                f" | thay đổi: {block.observable_changes or 'không rõ'}"
+                f" | confidence {block.confidence:.2f} ({block.evidence_source})"
+            )
+        description_lines = []
+        for label, value in (
+            ("Chủ thể", description_subject),
+            ("Hoạt động", description_activity),
+            ("Điểm nhấn", description_focus),
+        ):
+            if value:
+                description_lines.append(f"- {label} (người dùng mô tả, CHƯA kiểm chứng): {value}")
+
+        system_prompt = (
+            "You are the director of a short commentary video. Plan the video "
+            "before any script is written. Reply with JSON only, matching the "
+            "Direction schema: promise, key_moment_start, key_moment_end, "
+            "key_moment_reason, beats (one per template beat, in order), "
+            "sound_note. Rules: only claim what the timeline evidence supports; "
+            "one promise sentence; the key moment is the single most notable "
+            "observed block; each beat needs purpose (one sentence), "
+            "source_start/source_end inside the video duration following the "
+            "template beat order, key_evidence copied from observed changes, "
+            "overlay_text of at most 6 words (empty when no text is needed), "
+            "sfx_cue only at genuine sound moments (at most 3 beats, else null), "
+            "and pace slow/normal/brisk. Do not invent numbers, names or facts "
+            "absent from the timeline."
+        )
+        user_prompt = (
+            f"Chủ thể video: {visual_timeline.subject_matter or 'không rõ'}.\n"
+            f"Thời lượng: {duration:.1f}s. Ngôn ngữ kịch bản: {language}.\n"
+            f"Template: {template_id}. Ngôi kể: {narrator_mode}. Cảm xúc mục tiêu: {target_feeling}. {feeling_rule}\n"
+            f"Ngân sách từ cho kịch bản: {word_budget} từ.\n"
+            f"Trạng thái đầu: {visual_timeline.initial_state or 'không rõ'}.\n"
+            f"Kết quả cuối: {visual_timeline.final_outcome or 'không rõ'}.\n"
+            "Beats của template (đúng thứ tự, mỗi beat 1 mục trong beats):\n"
+            + "\n".join(beat_lines)
+            + "\nTimeline quan sát:\n"
+            + ("\n".join(block_lines) if block_lines else "- (không có block)")
+            + ("\nMô tả của người dùng:\n" + "\n".join(description_lines) if description_lines else "")
+            + (f"\nCẢNH ĐÃ CHỌN: {scene_note}\n" if scene_note else "")
+        )
+        try:
+            raw = self._call_text_llm_with_backup(
+                system_prompt=system_prompt, user_prompt=user_prompt, temperature=0.3
+            )
+            raw["video_id"] = visual_timeline.video_id
+            raw["template_id"] = template_id
+            raw["narrator_mode"] = narrator_mode
+            raw["target_feeling"] = target_feeling
+            raw["source"] = "llm"
+            direction = Direction(**raw)
+            direction = self._sanitize_direction(direction, template_beats, duration)
+            if direction.beats:
+                return direction
+            logger.warning("Direction LLM returned no usable beats; using fallback.")
+        except Exception as e:
+            logger.warning(f"Direction LLM failed ({e}); using fallback.")
+        return self.fallback_direction(
+            visual_timeline, template_id, template_beats, duration,
+            narrator_mode, target_feeling,
+        )
+
+    def _sanitize_direction(
+        self, direction: Direction, template_beats: list, duration: float
+    ) -> Direction:
+        """Ép bản Định hướng về đúng beat của template và trong thời lượng."""
+        allowed = [b["beat"] for b in template_beats]
+        kept = []
+        for beat in direction.beats:
+            if beat.beat not in allowed:
+                continue
+            beat.source_start = min(max(0.0, beat.source_start), duration)
+            beat.source_end = min(max(beat.source_start, beat.source_end), duration)
+            kept.append(beat)
+        direction.beats = kept
+        direction.key_moment_start = min(max(0.0, direction.key_moment_start), duration)
+        direction.key_moment_end = min(max(direction.key_moment_start, direction.key_moment_end), duration)
+        return direction
+
+    def fallback_direction(
+        self,
+        visual_timeline: VisualActionTimeline,
+        template_id: str,
+        template_beats: list,
+        duration: float,
+        narrator_mode: str,
+        target_feeling: str,
+    ) -> Direction:
+        """Bản Định hướng suy ra bằng quy tắc khi LLM hỏng: an toàn, không bịa."""
+        blocks = visual_timeline.action_timeline or []
+        peak = None
+        if blocks:
+            def _peak_key(block):
+                observed_bonus = 1.0 if block.evidence_source == "observed" else 0.0
+                return (block.confidence + observed_bonus, len(block.observable_changes or ""))
+
+            peak = max(blocks, key=_peak_key)
+        angle = self.derive_story_angle(visual_timeline)
+        promise = angle.split(".")[0].strip() + "." if angle else (visual_timeline.subject_matter or "Video.")
+        total_ref = sum(
+            (b.get("target_seconds") or [0, 0])[1] - (b.get("target_seconds") or [0, 0])[0]
+            for b in template_beats
+        ) or duration
+        beats = []
+        cursor = 0.0
+        for index, beat in enumerate(template_beats):
+            target = beat.get("target_seconds") or [0, 0]
+            span = (target[1] - target[0]) * duration / total_ref if total_ref else duration / len(template_beats)
+            start = cursor
+            end = duration if index == len(template_beats) - 1 else min(duration, cursor + span)
+            nearest = None
+            if blocks:
+                mid = (start + end) / 2
+                nearest = min(blocks, key=lambda b: abs((b.time_range.start + b.time_range.end) / 2 - mid))
+            overlay = ""
+            if nearest and nearest.visual_action:
+                overlay = " ".join(nearest.visual_action.split()[:6])
+            beats.append(DirectionBeat(
+                beat=beat["beat"],
+                purpose=beat.get("note", "") or (nearest.visual_action if nearest else ""),
+                source_start=round(start, 3),
+                source_end=round(end, 3),
+                key_evidence=nearest.observable_changes if nearest else "",
+                overlay_text=overlay,
+                sfx_cue=None,
+                pace="normal",
+            ))
+            cursor = end
+        return Direction(
+            video_id=visual_timeline.video_id,
+            template_id=template_id,
+            promise=promise,
+            key_moment_start=peak.time_range.start if peak else 0.0,
+            key_moment_end=peak.time_range.end if peak else 0.0,
+            key_moment_reason=peak.visual_action if peak else "",
+            beats=beats,
+            sound_note="",
+            narrator_mode=narrator_mode,
+            target_feeling=target_feeling,
+            source="fallback",
+        )
+
+    def validate_script_against_direction(
+        self, script: CapCutCommentaryInterchange, direction: Direction
+    ) -> list[str]:
+        """Đối chiếu kịch bản với bản Định hướng; chỉ ghi chú, không sửa lặng lẽ."""
+        notes = []
+        segments = script.segments
+        plan = direction.beats
+        if not plan:
+            return notes
+        if len(segments) != len(plan):
+            notes.append(
+                f"Kịch bản có {len(segments)} segment nhưng Định hướng có {len(plan)} beat."
+            )
+        planned_ids = [b.beat for b in plan]
+        actual_ids = [s.beat for s in segments]
+        for index, (planned, actual) in enumerate(zip(planned_ids, actual_ids)):
+            if planned != actual:
+                notes.append(
+                    f"Beat thứ {index + 1} trong kịch bản là {actual}, Định hướng yêu cầu {planned}."
+                )
+                break
+        promise_words = self._content_words(direction.promise)
+        if promise_words and segments:
+            hook_words = self._content_words(segments[0].voiceover)
+            if not (promise_words & hook_words):
+                notes.append("Hook không nhắc tới từ khóa nào trong câu hứa hẹn của Định hướng.")
+        by_beat = {s.beat: s for s in segments}
+        for beat in plan:
+            segment = by_beat.get(beat.beat)
+            if segment is None:
+                continue
+            planned_sfx = (beat.sfx_cue or "").strip()
+            actual_sfx = ""
+            if segment.sfx_cue is not None:
+                cue = segment.sfx_cue
+                if isinstance(cue, dict):
+                    actual_sfx = cue.get("suggested_sfx", "") or ""
+                else:
+                    actual_sfx = getattr(cue, "suggested_sfx", "") or ""
+                actual_sfx = str(actual_sfx).strip()
+            if planned_sfx and not actual_sfx:
+                notes.append(f"Beat {beat.beat} đã định SFX ({planned_sfx}) nhưng kịch bản không có.")
+            elif actual_sfx and not planned_sfx:
+                notes.append(f"Beat {beat.beat} có SFX ({actual_sfx}) ngoài kế hoạch Định hướng.")
+            planned_overlay = (beat.overlay_text or "").strip()
+            actual_overlay = (segment.text_overlay.text or "").strip() if segment.text_overlay else ""
+            if planned_overlay and not actual_overlay:
+                notes.append(f"Beat {beat.beat} đã định chữ overlay nhưng kịch bản không có.")
+        return notes
+
+    _STOPWORDS = {
+        "the", "and", "with", "that", "this", "from", "into", "over", "your",
+        "when", "what", "have", "will", "just", "like", "then", "than",
+        "much", "more", "most", "very", "really", "about", "after", "before",
+        "cái", "của", "và", "là", "có", "trong", "với", "được", "một",
+        "những", "này", "kia", "cho", "khi", "để", "như", "rất", "đã",
+        "đang", "sẽ", "không", "cũng", "mà", "thì", "là",
+    }
+
+    @classmethod
+    def _content_words(cls, text: str) -> set:
+        words = set()
+        for raw in text.lower().split():
+            word = raw.strip(".,!?;:\"'()[]«»“”")
+            if len(word) >= 4 and word not in cls._STOPWORDS:
+                words.add(word)
+        return words
 
     def enforce_script_duration(
         self, script: CapCutCommentaryInterchange, duration: float
@@ -324,6 +626,7 @@ class CommentaryScriptEngine:
         description_focus: Optional[str] = None,
         narrator_mode: Optional[str] = None,
         scene_note: Optional[str] = None,
+        direction: Optional[Direction] = None,
     ) -> CapCutCommentaryInterchange:
         """
         Tạo kịch bản lời bình đồng bộ với dòng thời gian thị giác.
@@ -369,30 +672,29 @@ class CommentaryScriptEngine:
                 "Timeline trên đã dồn mốc giây về 0 theo clip đã ghép; viết lời bình liền mạch "
                 "như một video liên tục, mốc giây của segment tính theo clip đã ghép.\n"
             )
-
-        raw_result = None
-        # 1. Gọi Primary Text Provider
-        try:
-            raw_result = self._call_text_llm(
-                api_key=settings.OPENAI_API_KEY,
-                base_url=settings.OPENAI_BASE_URL,
-                model=settings.DEFAULT_TEXT_MODEL,
-                system_prompt=system_prompt,
-                user_prompt=user_prompt
-            )
-        except Exception as e:
-            logger.warning(f"Primary Text LLM error: {e}")
-            if settings.BACKUP_OPENAI_API_KEY:
-                logger.info("Attempting Backup Text LLM...")
-                raw_result = self._call_text_llm(
-                    api_key=settings.BACKUP_OPENAI_API_KEY,
-                    base_url=settings.BACKUP_OPENAI_BASE_URL,
-                    model=settings.BACKUP_TEXT_MODEL,
-                    system_prompt=system_prompt,
-                    user_prompt=user_prompt
+        if direction is not None:
+            beat_lines = []
+            for beat in direction.beats:
+                beat_lines.append(
+                    f"- {beat.beat} ({beat.source_start:.1f}–{beat.source_end:.1f}s): {beat.purpose}"
+                    f" | bằng chứng: {beat.key_evidence or 'không rõ'}"
+                    f" | overlay: {beat.overlay_text or 'không có'}"
+                    f" | SFX: {beat.sfx_cue or 'không có'} | nhịp: {beat.pace}"
                 )
-            else:
-                raise RuntimeError(f"Commentary Script Generation failed: {e}")
+            user_prompt += (
+                "\nBẢN ĐỊNH HƯỚNG ĐÃ DUYỆT — BẮT BUỘC TUÂN THEO:\n"
+                f"Câu hứa hẹn: {direction.promise}\n"
+                f"Khoảnh khắc chính ({direction.key_moment_start:.1f}–{direction.key_moment_end:.1f}s): "
+                f"{direction.key_moment_reason}\n"
+                + "\n".join(beat_lines)
+                + (f"\nChỉ đạo âm thanh: {direction.sound_note}" if direction.sound_note else "")
+                + "\nViết đúng số beat, đúng thứ tự, đúng mục đích từng beat; hook phải giữ câu hứa hẹn; "
+                "chỉ đặt SFX ở beat đã định; overlay theo đúng chữ đã định.\n"
+            )
+
+        raw_result = self._call_text_llm_with_backup(
+            system_prompt=system_prompt, user_prompt=user_prompt
+        )
 
         # Tính toán WPM thực tế để kiểm tra chất lượng
         segments = raw_result.get("segments", [])
