@@ -14,12 +14,26 @@ Monorepo xây dựng video ngắn dọc 9:16 qua 4 tầng tách biệt: phân t�
 - **`fablecut-bundle/`** — Pipeline schema (`schema/input_schema.json`), presets (`presets/styles.json`, `presets/templates/`), compiler (`adapter/convert.py`), QA (`scripts/qa_check.py`), script quản lý server/cleanup, và cấu hình MCP (`opencode.json`, `antigravity.json`).
 - **`youtube-analyst-niches-forest/`** — Dịch vụ Python FastAPI (`main.py`) có `.venv/` và `.env` riêng; trích xuất ảnh lưới 3x3 (contact sheets), sinh kịch bản bình luận JSON/SRT/voiceover, và xuất gói dữ liệu theo `video_id` sang `fablecut-data/media/<video_id>/`.
 - **`fablecut-data/`** — Thư mục dữ liệu ngoài `FABLECUT_DATA_DIR` (`project.json`, `projects/`, `media/<video_id>/`, `exports/`, `analysis/`, `library/`). Dữ liệu runtime đã được gitignore; không ghi đè hoặc render lại các project/export hiện có trừ khi được yêu cầu rõ.
-- **`docs/`** — Tài liệu hợp nhất (`docs/PIPELINE-QA.md`, `docs/HUONG-DAN-SU-DUNG.md`, `docs/PROJECT_MODELS.md`). Coi `docs/archive/` và `docs/design/` là tài liệu lịch sử tham khảo.
+- **`docs/`** — Tài liệu hợp nhất (`docs/PIPELINE-QA.md`, `docs/HUONG-DAN-SU-DUNG.md`, `docs/PROJECT_MODELS.md`). `docs/design/` là **tài liệu hiện hành** (phải cập nhật khi code đổi, theo quy tắc đồng bộ ở dưới); chỉ `docs/archive/` là lịch sử tham khảo.
 
 ### Quy tắc nhánh (chốt 2026-11-17)
 - Repo chỉ có 2 nhánh: `main` (ổn định) và `dev` (làm việc). **Không tạo thêm nhánh nhỏ lẻ.**
 - Mọi thay đổi code đều làm trên `dev`, không commit trực tiếp lên `main`.
 - Merge `dev` → `main` chỉ sau khi chủ repo đã kiểm tra trên máy local và đồng ý. Không tự merge.
+
+### Quy tắc đồng bộ code & tài liệu thiết kế (chốt 2026-11-17)
+Mọi thay đổi ảnh hưởng tới **UI, API, schema DB, hoặc quy tắc nghiệp vụ** phải được cập nhật trong tài liệu tương ứng **trước khi hoàn thiện task**; không để code và tài liệu lệch nhau.
+
+| Thay đổi | Tài liệu phải cập nhật |
+|---|---|
+| UI / trải nghiệm người dùng (Commentary Studio) | `docs/design/05_ui_ux_commentary_studio.md` |
+| API (endpoints, params, response) + CapCut interchange | `docs/design/04_capcut_interchange_and_api.md` |
+| Schema dữ liệu & prompts theo skill | `docs/design/03_skills_registry_and_prompts.md` |
+| Nghiệp vụ 2 bước (Vision → Script, fallback bằng quy tắc) | `docs/design/02_two_stage_commentary_engine.md` |
+| Tiền xử lý video / contact sheet | `docs/design/01_local_video_preprocessor.md` |
+| Kiến trúc tổng thể, runtime, lưu trữ | `docs/design/00_overview_and_architecture.md` |
+
+Lưu ý: `docs/design/` là **tài liệu hiện hành** — phải cập nhật khi code đổi; chỉ `docs/archive/` mới là lịch sử. (Điều chỉnh cho mục "Ranh giới thư mục" ở trên: tách riêng `docs/design/` ra khỏi nhóm "lịch sử tham khảo".)
 
 ### Nguồn hướng dẫn chi tiết theo phân hệ
 - `fablecut-bundle/AGENTS.md` — Quy trình cài đặt và vận hành 9Router + OpenCode + FableCut (Tiếng Việt).

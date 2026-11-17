@@ -197,6 +197,7 @@ function renderDirectionForm() {
           <option value="brisk" ${beat.pace === "brisk" ? "selected" : ""}>Nhịp nhanh</option>
         </select>
       </div>
+      <input class="form-control direction-edit-guidance" maxlength="300" value="${escapeHtml(beat.edit_guidance || "")}" aria-label="Chỉ dẫn dựng beat ${escapeHtml(beat.beat)}" placeholder="Chỉ dẫn cắt dựng / góc máy" />
       <p class="form-hint">Bằng chứng: ${escapeHtml(beat.key_evidence || "không rõ")}</p>
     `;
     container.appendChild(row);
@@ -216,6 +217,7 @@ function readDirectionFromForm() {
     const sfx = row.querySelector(".direction-sfx").value.trim();
     beat.sfx_cue = sfx || null;
     beat.pace = row.querySelector(".direction-pace").value;
+    beat.edit_guidance = row.querySelector(".direction-edit-guidance").value.trim();
   });
   return direction;
 }
@@ -645,6 +647,7 @@ async function analyzeVideo() {
       sceneSection.style.display = "none";
       document.getElementById("btnGenerateScript").disabled = false;
     }
+    renderEditPlan(data.edit_plan);
     document.getElementById("step2Section").style.display = "block";
     // Xóa kịch bản cũ khỏi cột biên tập: video mới chưa có kịch bản.
     document.getElementById("segmentsList").innerHTML = '<div class="empty-placeholder">Xem timeline ở cột giữa, chốt template ở cột trái, rồi bấm "Viết kịch bản".</div>';
@@ -735,11 +738,13 @@ async function generateScriptFromAnalysis() {
 
     const data = await res.json();
     currentResult.capcut_json = data.capcut_json;
+    currentResult.edit_plan = data.edit_plan || data.capcut_json?.edit_plan || null;
     currentResult.template_recommendation = data.template_recommendation;
     currentResult.review_notes = data.review_notes || [];
     currentResult.story_angle = data.story_angle;
     lastSavedAt = null;
     renderCommentarySegments(data.capcut_json);
+    renderEditPlan(data.edit_plan || data.capcut_json?.edit_plan);
 
     const notes = document.getElementById("reviewNotes");
     if (notes) {
@@ -772,6 +777,62 @@ async function generateScriptFromAnalysis() {
     btn.disabled = false;
     btnText.innerText = "Viết kịch bản theo template đã chốt";
   }
+}
+
+const EDIT_ROLE_LABELS = {
+  hook: "Hook", setup: "Thiết lập", action: "Hành động",
+  climax: "Cao trào", payoff: "Kết quả", transition: "Chuyển cảnh"
+};
+const EDIT_ROLE_COLORS = {
+  hook: "#f59e0b", setup: "#3b82f6", action: "#10b981",
+  climax: "#ef4444", payoff: "#8b5cf6", transition: "#94a3b8"
+};
+
+function renderEditPlan(plan) {
+  const box = document.getElementById("editPlanBox");
+  if (!box) return;
+  if (!plan || !Array.isArray(plan.cuts) || plan.cuts.length === 0) {
+    box.style.display = "none";
+    return;
+  }
+
+  box.style.display = "flex";
+  const target = Number(plan.target_duration_seconds || 0);
+  const original = Number(plan.original_duration_seconds || target);
+  document.getElementById("editPlanBadge").textContent = `${target.toFixed(1)}s / ${original.toFixed(1)}s gốc`;
+  document.getElementById("editPlanStrategy").textContent = plan.narrative_strategy || "Kế hoạch cắt dựng theo mạch kể.";
+  document.getElementById("editPlanNote").textContent = plan.trimmed_sections_note || "";
+
+  const bar = document.getElementById("editPlanTimelineBar");
+  bar.innerHTML = "";
+  plan.cuts.forEach((cut, index) => {
+    const role = String(cut.role || "action").toLowerCase();
+    const width = target > 0 ? Math.max(2, (Number(cut.duration || 0) / target) * 100) : 100 / plan.cuts.length;
+    const segment = document.createElement("div");
+    segment.className = `timeline-bar-segment role-${role}`;
+    segment.style.width = `${width}%`;
+    segment.style.background = EDIT_ROLE_COLORS[role] || EDIT_ROLE_COLORS.action;
+    segment.title = `${EDIT_ROLE_LABELS[role] || role}: nguồn ${formatSeconds(cut.source_start)}–${formatSeconds(cut.source_end)} → đầu ra ${formatSeconds(cut.output_start)}–${formatSeconds(cut.output_end)}`;
+    segment.textContent = width >= 12 ? EDIT_ROLE_LABELS[role] || role : String(index + 1);
+    bar.appendChild(segment);
+  });
+
+  const list = document.getElementById("editPlanCutsList");
+  list.innerHTML = "";
+  plan.cuts.forEach((cut, index) => {
+    const role = String(cut.role || "action").toLowerCase();
+    const card = document.createElement("article");
+    card.className = "edit-cut-card";
+    card.innerHTML = `
+      <div class="edit-cut-header">
+        <div class="edit-cut-title"><span>${String(index + 1).padStart(2, "0")}</span><span class="role-badge role-${escapeHtml(role)}">${escapeHtml(EDIT_ROLE_LABELS[role] || role)}</span></div>
+        <div class="edit-cut-times"><span>Nguồn <strong>${formatSeconds(cut.source_start)}–${formatSeconds(cut.source_end)}</strong></span><span>→</span><span>Output <strong>${formatSeconds(cut.output_start)}–${formatSeconds(cut.output_end)}</strong></span></div>
+      </div>
+      <div class="edit-cut-details">${escapeHtml(cut.visual_action || cut.reason || "")}${cut.suggested_transition ? ` · Chuyển: ${escapeHtml(cut.suggested_transition)}` : ""}${cut.speed_factor && cut.speed_factor !== 1 ? ` · Tốc độ ${escapeHtml(cut.speed_factor)}×` : ""}</div>
+      ${cut.edit_guidance ? `<div class="edit-cut-guidance">✂ ${escapeHtml(cut.edit_guidance)}</div>` : ""}
+    `;
+    list.appendChild(card);
+  });
 }
 
 // Render kết quả phân tích (bước 1): contact sheet, âm thanh, timeline, ghi chú.
@@ -898,6 +959,7 @@ function renderCommentarySegments(capcutJson) {
 
   const container = document.getElementById("segmentsList");
   container.innerHTML = "";
+  renderEditPlan(capcutJson.edit_plan || currentResult?.edit_plan);
 
   (capcutJson.segments || []).forEach((seg, idx) => {
     const card = document.createElement("div");
@@ -907,13 +969,22 @@ function renderCommentarySegments(capcutJson) {
     const sfxName = sfxId ? sfxId.replace(/_/g, " ").toUpperCase() : "NO SFX";
     const overlayText = seg.text_overlay ? seg.text_overlay.text : "";
     const viText = seg.voiceover_vi_translation || seg.voiceover;
+    const beatId = String(seg.beat || "action").toLowerCase();
+    const beatRole = beatId.includes("hook") || beatId === "question" || beatId === "emergency" ? "hook"
+      : beatId.includes("setup") || beatId === "problem" || beatId === "diagnosis" ? "setup"
+      : beatId.includes("climax") || beatId === "treatment" || beatId === "turn" ? "climax"
+      : beatId.includes("payoff") || beatId === "result" || beatId === "after" || beatId === "relief" || beatId === "end" ? "payoff"
+      : beatId === "transition" ? "transition" : "action";
+    const sourceRange = seg.source_time_range;
 
     card.innerHTML = `
       <div class="segment-header">
-        <span class="beat-tag beat-${seg.beat}">[${seg.beat}]</span>
+        <span class="beat-tag beat-${escapeHtml(seg.beat)}">[${escapeHtml(seg.beat)}]</span>
+        <span class="role-badge role-${escapeHtml(beatRole)}">${escapeHtml(EDIT_ROLE_LABELS[beatRole] || beatRole)}</span>
         <span class="segment-time">${formatSeconds(seg.time_range.start)} - ${formatSeconds(seg.time_range.end)}</span>
+        ${sourceRange ? `<span class="source-time-tag" title="Mốc trên video gốc">Nguồn ${formatSeconds(sourceRange.start)}–${formatSeconds(sourceRange.end)}</span>` : ""}
       </div>
-      <textarea class="segment-textarea" oninput="updateSegmentVoiceover(${idx}, this.value)" placeholder="Câu lời bình (Voiceover)...">${seg.voiceover}</textarea>
+      <textarea class="segment-textarea" oninput="updateSegmentVoiceover(${idx}, this.value)" placeholder="Câu lời bình (Voiceover)...">${escapeHtml(seg.voiceover)}</textarea>
       
       <!-- Khung Phụ đề Gợi ý Dịch nghĩa Tiếng Việt -->
       <div class="segment-vi-box">
@@ -921,13 +992,15 @@ function renderCommentarySegments(capcutJson) {
           <span>🇻🇳</span>
           <span>GỢI Ý DỊCH TIẾNG VIỆT (SUBTITLE):</span>
         </div>
-        <div class="segment-vi-text" contenteditable="true" onblur="updateSegmentViTranslation(${idx}, this.innerText)" title="Click để chỉnh sửa phụ đề tiếng Việt nếu muốn">${viText}</div>
+        <div class="segment-vi-text" contenteditable="true" onblur="updateSegmentViTranslation(${idx}, this.innerText)" title="Click để chỉnh sửa phụ đề tiếng Việt nếu muốn">${escapeHtml(viText)}</div>
       </div>
+
+      ${seg.edit_guidance ? `<div class="segment-edit-guidance"><span class="guidance-icon">✂️</span><span><strong>Chỉ dẫn dựng:</strong> ${escapeHtml(seg.edit_guidance)}</span></div>` : ""}
 
       <div class="segment-footer">
         <div class="text-overlay-pill" title="Chữ hiển thị trên màn hình">
           <span>🔤</span>
-          <strong>${overlayText}</strong>
+          <strong>${escapeHtml(overlayText)}</strong>
         </div>
         ${sfxId ? `<button type="button" class="sfx-player-btn" onclick="playSfx('${sfxId}', this)" title="Nghe thử âm thanh SFX">` : `<span class="sfx-player-btn">`}
           <span>🔊</span>
@@ -998,15 +1071,23 @@ function ensureSaveBar() {
   if (!actions) return;
   const status = document.createElement("span");
   status.id = "saveScriptStatus";
-  status.style.cssText = "align-self:center;font-size:13px;opacity:0.85;";
+  status.className = "actions-status";
+  status.style.cssText = "font-size:13px;opacity:0.85;";
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "btn-secondary";
   btn.id = "btnSaveScript";
   btn.innerHTML = "<span>💾</span> <span>Lưu bản sửa</span>";
   btn.onclick = saveEditedScript;
-  actions.prepend(status);
-  actions.prepend(btn);
+  // STUDIO-LOCK: đặt vào nhóm "Hành động" (không chen vào grid nhóm)
+  const actionsGroup = actions.querySelector(".actions-group--actions");
+  if (actionsGroup) {
+    actionsGroup.appendChild(btn);
+    actionsGroup.appendChild(status);
+  } else {
+    actions.prepend(status);
+    actions.prepend(btn);
+  }
   updateSaveStatus();
 }
 
@@ -1162,6 +1243,7 @@ async function handleQuickRewrite() {
     const rewriteData = await res.json();
     const newScript = rewriteData.capcut_json || rewriteData;
     currentResult.capcut_json = newScript;
+    currentResult.edit_plan = rewriteData.edit_plan || newScript.edit_plan || null;
     if (rewriteData.template_recommendation) {
       currentResult.template_recommendation = rewriteData.template_recommendation;
       updateTemplateHint(rewriteData.template_recommendation);

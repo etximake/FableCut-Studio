@@ -3,8 +3,10 @@
 ## 1. NGUYÊN LÝ THIẾT KẾ SKILL THEO CHUẨN OPENCODE
 Hệ thống chuyển đổi từ một prompt cứng nhắc duy nhất sang kiến trúc **Skill Registry (Kho kỹ năng biên kịch mô-đun hóa)**. Mỗi Skill là một thực thể độc lập quy định:
 1. **Persona & Giọng điệu (Voice & Tone):** Xác định danh tính người nói (chuyên gia phân tích, người kể chuyện kịch tính, bình luận viên dí dỏm).
-2. **Chiến thuật giữ chân (Retention Levers):** Cách đặt câu Hook 0–3s, cách cài cắm "Re-hook" ở giây thứ 15–20 để ngăn người xem lướt qua.
-3. **Quy tắc bảo toàn sự thật (Fact-Anchoring Guard):** Ranh giới không được vượt qua để bảo đảm tính chuẩn xác của hiện tượng.
+2. **Quy tắc bảo toàn sự thật (Fact-Anchoring Guard):** Ranh giới không được vượt qua để bảo đảm tính chuẩn xác của hiện tượng.
+3. **(Batch 1) Skill chỉ quyết định GIỌNG ĐIỆU.** Cấu trúc beat và mốc thời lượng được do **Template** (1 trong 6: hazard-rescue, shock-hook, how-it-works, satisfying, before-after, story) quyết định. Ngôi kể và cảm giác mục tiêu là tham số riêng của prompt (src/skills/base.py:30–34).
+
+> **Khác với thiết kế gốc:** tài liệu này (mục 2) mô tả 5 Skill nòng cốt; thực tế trong `src/skills/registry.py:9–18` hiện có 5 Skill được đăng ký, **không còn cơ chế "Retention Levers" 0–4s / 15–20s** như bản thiết kế — các mốc giờ đó đã được thay bằng `target_seconds` từng beat của template.
 
 ---
 
@@ -100,13 +102,21 @@ mindmap
 
 ## 3. BỘ TIÊU CHÍ KIỂM DUYỆT CHẤT LƯỢNG LỜI BÌNH (QUALITY GATES)
 
-Mỗi kịch bản do Chặng 2 sinh ra bắt buộc phải vượt qua bộ lọc tự động kiểm tra trước khi trả về:
+Mỗi kịch bản do Chặng 2 sinh ra được kiểm tra bởi `validate_generated_script` (src/analyzer/commentary_engine.py:627–685) — **trả về danh sách note kiểm tra, không tự động sửa lại**. Các gate thực tế trong code:
 
-1. **Gate 1: Giới hạn độ dài và Tốc độ đọc (WPM Gate):**
-   $$\text{WPM} = \frac{\text{Tổng số từ}}{\text{Thời lượng (giây)}} \times 60$$
-   * Yêu cầu bắt buộc: $120 \le \text{WPM} \le 150$ từ/phút (tương đương 2.0 – 2.5 từ/giây).
-   * Nếu vượt quá ngưỡng: Hệ thống yêu cầu AI rút gọn câu, gạt bỏ từ đệm.
-2. **Gate 2: Anti-AI Vocabulary Gate (Thanh lọc từ sáo rỗng):**
-   * Tự động quét và cấm các cụm từ sáo rỗng của AI: *"Chào mừng các bạn", "Trong video này", "Hãy cùng xem", "Không thể ngờ rằng", "Hãy like và share"*.
-3. **Gate 3: Đồng bộ 3 Lớp (Three-Layer Alignment):**
-   * Mỗi phân đoạn bắt buộc phải có đủ 3 thành phần: **Lời đọc (Voiceover)** + **Chữ nổi (Text Overlay 3-5 từ)** + **Hiệu ứng âm thanh (SFX Cue)**.
+1. **Gate 1: Giới hạn ngân sách từ & WPM (Warning, không chặn):**
+   - Tổng số từ của kịch bản phải $\le$ `word_budget * 1.05` (ngân sách tính theo `compute_word_budget(duration, skill.target_wpm)`, src/analyzer/commentary_engine.py:96–98).
+   - Vượt quá → ghi `review_note`: "Lời bình dài ... từ, vượt ngân sách ... từ ... hãy viết lại ngắn hơn." (không tự động cắt).
+2. **Gate 2: Anti-AI / Anti-Literal Narration Marker (Warning):**
+   - Quét các cụm sáo rỗng: `"trong video này"`, `"video cho thấy"`, `"chúng ta thấy"`, `"in this video"`, `"we can see"`, `"as you can see"` (src/analyzer/commentary_engine.py:675–679).
+   - Mỗi Skill có thêm danh sách "Banned phrases" riêng trong `get_system_instructions` (vd "In this video", "Did you know", "You won't believe").
+3. **Gate 3: Kiểm tra Text Overlay (Warning):**
+   - Overlay quá 7 từ, hoặc kết thúc bằng dấu câu/giới từ (`trailing_bad_words`, src/analyzer/commentary_engine.py:665) → cảnh báo.
+4. **Gate 4: Liên tục Timeline (Warning):**
+   - Khoảng trống giữa 2 segment > 0.01s, segment đầu không bắt đầu ở 0.0, segment cuối kết thúc trước thời lượng video → cảnh báo.
+5. **Gate 5: Claim Kỹ Thuật chưa xác minh (Warning):**
+   - Quét các từ "năng suất", "tăng gấp", "nguyên nhân", "giúp tiết kiệm", "lợi nhuận", "%" → cảnh báo "có thể chứa claim kỹ thuật/định lượng; hãy đối chiếu với bằng chứng".
+6. **Gate 6: Đối chiếu Direction (Warning, Batch 2):**
+   - `validate_script_against_direction` (src/analyzer/commentary_engine.py:503+) kiểm tra kịch bản có đúng số beat, đúng thứ tự, đúng mục đích theo bản Direction đã duyệt.
+
+> **Lưu ý so với thiết kế gốc:** Gate 3 trong thiết kế (bắt buộc 3 lớp voiceover + overlay + SFX) **không còn là điều kiện chặn** — SFX hiện là trường `Optional[SFXCue]` (src/models/schemas.py:153), không bắt buộc từng segment phải có đủ cả 3.

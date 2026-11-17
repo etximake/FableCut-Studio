@@ -1,7 +1,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, List
 from openai import OpenAI
 from src.core.config import settings
 from src.core.utils import extract_json_from_response
@@ -10,9 +10,12 @@ from src.models.schemas import (
     CapCutCommentaryInterchange,
     Direction,
     DirectionBeat,
+    SceneRange,
     TemplateRecommendation,
+    TimeRange,
     VisualActionTimeline,
 )
+from src.analyzer.scene_selector import build_edit_plan
 
 logger = logging.getLogger(__name__)
 
@@ -347,10 +350,16 @@ class CommentaryScriptEngine:
             "observed block; each beat needs purpose (one sentence), "
             "source_start/source_end inside the video duration following the "
             "template beat order, key_evidence copied from observed changes, "
-            "overlay_text of at most 6 words (empty when no text is needed), "
+            "overlay_text of at most 5 words as a punchy UPPERCASE title/headline "
+            "(never an incomplete sentence or ending in conjunctions/prepositions like 'as', 'and', 'the'), "
             "sfx_cue only at genuine sound moments (at most 3 beats, else null), "
-            "and pace slow/normal/brisk. Do not invent numbers, names or facts "
+            "pace slow/normal/brisk, and edit_guidance specifying concrete camera "
+            "or cutting instructions. Do not invent numbers, names or facts "
             "absent from the timeline."
+        )
+        system_prompt += (
+            " Each beat object must also include edit_guidance: one concise, "
+            "practical instruction for framing, cut point, or pacing."
         )
         user_prompt = (
             f"Chủ thể video: {visual_timeline.subject_matter or 'không rõ'}.\n"
@@ -393,11 +402,20 @@ class CommentaryScriptEngine:
         """Ép bản Định hướng về đúng beat của template và trong thời lượng."""
         allowed = [b["beat"] for b in template_beats]
         kept = []
+        trailing_bad = {"as", "and", "the", "with", "toward", "towards", "to", "for", "of", "in", "on", "at", "by", "và", "với", "như", "để", "của"}
         for beat in direction.beats:
             if beat.beat not in allowed:
                 continue
             beat.source_start = min(max(0.0, beat.source_start), duration)
             beat.source_end = min(max(beat.source_start, beat.source_end), duration)
+            if beat.overlay_text:
+                txt = beat.overlay_text.strip().rstrip(",-.:; ")
+                words = txt.split()
+                while words and words[-1].lower() in trailing_bad:
+                    words.pop()
+                beat.overlay_text = " ".join(words[:6])
+            if not getattr(beat, "edit_guidance", None):
+                beat.edit_guidance = f"Cắt nhịp {beat.pace}, tập trung vào chi tiết hành động chính."
             kept.append(beat)
         direction.beats = kept
         direction.key_moment_start = min(max(0.0, direction.key_moment_start), duration)
@@ -430,6 +448,7 @@ class CommentaryScriptEngine:
         ) or duration
         beats = []
         cursor = 0.0
+        trailing_bad = {"as", "and", "the", "with", "toward", "towards", "to", "for", "of", "in", "on", "at", "by", "và", "với", "như", "để", "của"}
         for index, beat in enumerate(template_beats):
             target = beat.get("target_seconds") or [0, 0]
             span = (target[1] - target[0]) * duration / total_ref if total_ref else duration / len(template_beats)
@@ -441,7 +460,20 @@ class CommentaryScriptEngine:
                 nearest = min(blocks, key=lambda b: abs((b.time_range.start + b.time_range.end) / 2 - mid))
             overlay = ""
             if nearest and nearest.visual_action:
-                overlay = " ".join(nearest.visual_action.split()[:6])
+                raw_words = nearest.visual_action.split()[:4]
+                while raw_words and raw_words[-1].lower() in trailing_bad:
+                    raw_words.pop()
+                overlay = " ".join(raw_words).upper()
+            if index == 0:
+                role_hint = "Hook: cắt giật vào chi tiết gây tò mò, bỏ phần chờ trước hành động."
+            elif index == len(template_beats) - 1:
+                role_hint = "Payoff: giữ khung hình đủ rộng để người xem đọc được kết quả cuối."
+            elif index == 1:
+                role_hint = "Setup: thiết lập bối cảnh ngắn rồi nối vào thao tác chính."
+            elif index == len(template_beats) - 2:
+                role_hint = "Climax: cắt sát thời điểm tác động mạnh nhất, giữ tốc độ tự nhiên."
+            else:
+                role_hint = "Action: cắt bỏ khoảng lặng, giữ rõ thao tác hoặc biến đổi đang diễn ra."
             beats.append(DirectionBeat(
                 beat=beat["beat"],
                 purpose=beat.get("note", "") or (nearest.visual_action if nearest else ""),
@@ -451,6 +483,7 @@ class CommentaryScriptEngine:
                 overlay_text=overlay,
                 sfx_cue=None,
                 pace="normal",
+                edit_guidance=role_hint,
             ))
             cursor = end
         return Direction(
@@ -565,6 +598,27 @@ class CommentaryScriptEngine:
             segment.time_range.start = round(start, 3)
             segment.time_range.end = round(end, 3)
             kept.append(segment)
+
+        if kept and kept[0].time_range.start > 0.01:
+            old_start = kept[0].time_range.start
+            kept[0].time_range.start = 0.0
+            notes.append(
+                f"Beat đầu đã được kéo về 0.0s (trước đó bắt đầu ở {old_start:.1f}s) để không bỏ trống phần mở đầu."
+            )
+
+        # Đảm bảo tính liên tục không bị khoảng trống giữa các phân đoạn
+        for i in range(1, len(kept)):
+            if abs(kept[i].time_range.start - kept[i - 1].time_range.end) > 0.01:
+                kept[i].time_range.start = kept[i - 1].time_range.end
+
+        # Tự động kéo dài phân đoạn cuối nếu kết thúc sớm hơn video
+        if kept and kept[-1].time_range.end < duration - 0.1:
+            old_end = kept[-1].time_range.end
+            kept[-1].time_range.end = round(duration, 3)
+            notes.append(
+                f"Phân đoạn cuối đã được kéo dài từ {old_end:.1f}s chạm mốc {duration:.1f}s để phủ trọn vẹn video."
+            )
+
         script.segments = kept
         if not kept:
             notes.append("Kịch bản không còn beat nào trong thời lượng video; cần tạo lại.")
@@ -607,12 +661,53 @@ class CommentaryScriptEngine:
                     f"Lời bình dài {total_words} từ, vượt ngân sách {word_budget} từ cho "
                     f"{expected:.1f}s; giọng đọc có thể bị cắt cụt ở cuối. Hãy viết lại ngắn hơn."
                 )
+
+        trailing_bad_words = {"as", "and", "the", "with", "toward", "towards", "to", "of", "in", "on", "at", "by", "for", "và", "với", "như", "để", "của", "trong", "ở", "bởi", "khi"}
+        for index, segment in enumerate(segments):
+            if segment.text_overlay and segment.text_overlay.text:
+                txt = segment.text_overlay.text.strip()
+                words = txt.split()
+                if len(words) > 7:
+                    notes.append(f"Beat {index + 1}: Chữ overlay '{txt}' quá dài ({len(words)} từ); nên rút gọn thành tiêu đề 2-5 từ.")
+                if txt.endswith((",", "-", "...", ":", ";")) or (words and words[-1].lower() in trailing_bad_words):
+                    notes.append(f"Beat {index + 1}: Chữ overlay '{txt}' là câu cụt/ngắt lửng; cần sửa thành tiêu đề hoàn chỉnh.")
+
+        literal_markers = ("trong video này", "video cho thấy", "chúng ta thấy", "in this video", "we can see", "as you can see")
+        for index, segment in enumerate(segments):
+            vo_lower = segment.voiceover.lower()
+            if any(marker in vo_lower for marker in literal_markers):
+                notes.append(f"Beat {index + 1}: Lời bình có cụm từ tường thuật hình thức ('{segment.voiceover[:40]}...'); nên chuyển sang kể chuyện/giải thích cơ chế.")
         unsupported_claim_markers = ("năng suất", "tăng gấp", "tăng trưởng", "khoảng cách", "nguyên nhân", "giúp tiết kiệm", "lợi nhuận", "%")
         for index, segment in enumerate(segments):
             text = segment.voiceover.lower()
             if any(marker in text for marker in unsupported_claim_markers):
                 notes.append(f"Beat {index + 1} có thể chứa claim kỹ thuật/định lượng; hãy đối chiếu với bằng chứng trước khi duyệt.")
         return notes
+
+    @staticmethod
+    def _map_to_source_range(start: float, end: float, scenes: Optional[List[SceneRange]]) -> TimeRange:
+        if not scenes:
+            return TimeRange(start=round(start, 3), end=round(end, 3))
+        ordered = sorted(scenes, key=lambda s: s.start)
+        cursor = 0.0
+        best = None
+        for sc in ordered:
+            sc_dur = sc.end - sc.start
+            next_cursor = cursor + sc_dur
+            overlap_start = max(start, cursor)
+            overlap_end = min(end, next_cursor)
+            overlap = max(0.0, overlap_end - overlap_start)
+            if overlap > 0 and (best is None or overlap > best[0]):
+                source_start = sc.start + (overlap_start - cursor)
+                source_end = sc.start + (overlap_end - cursor)
+                best = (overlap, source_start, source_end)
+            cursor = next_cursor
+
+        # Một source range đơn không biểu diễn được segment bắc qua splice;
+        # trả đoạn nguồn có phần giao dài nhất thay vì phủ nhầm footage bị bỏ.
+        if best is None:
+            return TimeRange(start=round(ordered[0].start, 3), end=round(ordered[0].start, 3))
+        return TimeRange(start=round(best[1], 3), end=round(max(best[1], best[2]), 3))
 
     def generate_commentary(
         self,
@@ -627,6 +722,8 @@ class CommentaryScriptEngine:
         narrator_mode: Optional[str] = None,
         scene_note: Optional[str] = None,
         direction: Optional[Direction] = None,
+        scenes: Optional[List[SceneRange]] = None,
+        original_timeline: Optional[VisualActionTimeline] = None,
     ) -> CapCutCommentaryInterchange:
         """
         Tạo kịch bản lời bình đồng bộ với dòng thời gian thị giác.
@@ -680,6 +777,7 @@ class CommentaryScriptEngine:
                     f" | bằng chứng: {beat.key_evidence or 'không rõ'}"
                     f" | overlay: {beat.overlay_text or 'không có'}"
                     f" | SFX: {beat.sfx_cue or 'không có'} | nhịp: {beat.pace}"
+                    f" | chỉ dẫn dựng: {beat.edit_guidance or 'cắt gọn, giữ rõ hành động'}"
                 )
             user_prompt += (
                 "\nBẢN ĐỊNH HƯỚNG ĐÃ DUYỆT — BẮT BUỘC TUÂN THEO:\n"
@@ -689,7 +787,7 @@ class CommentaryScriptEngine:
                 + "\n".join(beat_lines)
                 + (f"\nChỉ đạo âm thanh: {direction.sound_note}" if direction.sound_note else "")
                 + "\nViết đúng số beat, đúng thứ tự, đúng mục đích từng beat; hook phải giữ câu hứa hẹn; "
-                "chỉ đặt SFX ở beat đã định; overlay theo đúng chữ đã định.\n"
+                "chỉ đặt SFX ở beat đã định; overlay theo đúng chữ đã định; thêm edit_guidance ngắn cho từng beat.\n"
             )
 
         raw_result = self._call_text_llm_with_backup(
@@ -724,8 +822,49 @@ class CommentaryScriptEngine:
         if "video_metadata" in raw_result:
             raw_result["video_metadata"]["template_version"] = raw_result["template_version"]
 
+        orig_tl = original_timeline or visual_timeline
+        edit_plan = build_edit_plan(
+            timeline=orig_tl,
+            scenes=scenes or [],
+            template_id=selected_template,
+        )
+
         result = CapCutCommentaryInterchange(**raw_result)
         enforcement_notes = self.enforce_script_duration(result, duration)
+
+        result.edit_plan = edit_plan
+
+        # Gán source_time_range và edit_guidance cho từng phân đoạn
+        for seg in result.segments:
+            seg.source_time_range = self._map_to_source_range(
+                seg.time_range.start, seg.time_range.end, scenes
+            ) if scenes else None
+            if not seg.edit_guidance or not seg.edit_guidance.strip():
+                # 1. Tra cứu từ bản Định hướng
+                if direction:
+                    for b in direction.beats:
+                        if b.beat == seg.beat and getattr(b, "edit_guidance", None):
+                            seg.edit_guidance = b.edit_guidance
+                            break
+                # 2. Tra cứu từ Edit Plan cuts
+                if not seg.edit_guidance and edit_plan and edit_plan.cuts:
+                    for cut in edit_plan.cuts:
+                        if max(seg.time_range.start, cut.output_start) < min(seg.time_range.end, cut.output_end):
+                            if cut.edit_guidance:
+                                seg.edit_guidance = cut.edit_guidance
+                                break
+                # 3. Mặc định dự phòng theo vai trò beat
+                if not seg.edit_guidance:
+                    b_upper = seg.beat.upper()
+                    if "HOOK" in b_upper or "QUESTION" in b_upper:
+                        seg.edit_guidance = "Cắt giật cận cảnh vào khoảnh khắc ấn tượng nhất, nhịp nhanh tạo tò mò."
+                    elif "CLIMAX" in b_upper or "PEAK" in b_upper or "SURPRISE" in b_upper:
+                        seg.edit_guidance = "Cận cảnh khoảnh khắc quyết định hoặc chịu lực cao nhất, nhịp căng thẳng."
+                    elif "PAYOFF" in b_upper or "RESULT" in b_upper or "AFTER" in b_upper:
+                        seg.edit_guidance = "Góc rộng đúc kết thành quả và sự biến đổi rõ nét."
+                    else:
+                        seg.edit_guidance = "Duy trì góc máy rõ nét hành động, cắt bỏ khoảng lặng thừa."
+
         result.review_notes = enforcement_notes + self.validate_generated_script(
             result, word_budget=word_budget
         )

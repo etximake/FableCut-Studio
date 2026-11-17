@@ -126,9 +126,10 @@ class BaseCommentarySkill(ABC):
       "time_range": {{ "start": <contiguous_start>, "end": <contiguous_end> }},
       "voiceover": "...",
       "voiceover_vi_translation": "...",
-      "text_overlay": {{ "text": "...", "position": "TOP_CENTER", "style": "HIGHLIGHT_YELLOW" }},
+      "text_overlay": {{ "text": "TIT_LE_NGAN", "position": "TOP_CENTER", "style": "HIGHLIGHT_YELLOW" }},
       "sfx_cue": null,
-      "visual_hint": "..."
+      "visual_hint": "...",
+      "edit_guidance": "Chỉ dẫn góc máy và điểm cắt dựng cho editor"
     }}''' for beat in beats
             )
         else:
@@ -136,8 +137,9 @@ class BaseCommentarySkill(ABC):
       "beat": "HOOK",
       "time_range": {{ "start": 0.0, "end": {min(4.5, duration)} }},
       "voiceover": "...", "voiceover_vi_translation": "...",
-      "text_overlay": {{ "text": "...", "position": "TOP_CENTER", "style": "HIGHLIGHT_YELLOW" }},
-      "sfx_cue": null, "visual_hint": "..."
+      "text_overlay": {{ "text": "TIT_LE_NGAN", "position": "TOP_CENTER", "style": "HIGHLIGHT_YELLOW" }},
+      "sfx_cue": null, "visual_hint": "...",
+      "edit_guidance": "Chỉ dẫn góc máy và điểm cắt dựng cho editor"
     }}'''
 
         budget_lines = ""
@@ -155,7 +157,23 @@ NHẬT KÝ HÀNH ĐỘNG THỰC TẾ (VISUAL ACTION TIMELINE):
 
 NGÂN SÁCH TỪ: tổng khoảng {word_budget} từ cho video {duration} giây (tốc độ mục tiêu {float(self.target_wpm)} từ/phút).{budget_lines}
 
-QUY TẮC BẮT BUỘC VỀ DỊCH NGHĨA (voiceover_vi_translation):
+QUY TẮC BẮT BUỘC VỀ BIÊN KỊCH & DỰNG PHIM:
+1. KHÔNG THUẬT LẠI HÌNH ẢNH HIỂN NHIÊN (NO LITERAL NARRATION):
+   - Người xem tự thấy máy đang chạy, người đang làm. Lời bình PHẢI giải thích cơ chế, lý do, sự bất ngờ, áp lực vật lý hoặc giá trị thực tế thay vì tường thuật suông.
+   - Beat đầu tiên (Hook/Question) phải tạo ngay sự tò mò, nghịch lý hoặc ấn tượng mạnh.
+   - Beat cuối cùng (Payoff/Result) phải đúc kết chân thực dựa trên sự thật thị giác quan sát được, tuyệt đối không bịa đặt số liệu hay kết quả chưa được kiểm chứng.
+
+2. QUY TẮC CHẶT CHẼ VỀ TEXT OVERLAY (Chữ nổi trên màn hình):
+   - 'text': Là TIÊU ĐỀ HOẶC CỤM TỪ KHÓA NGẮN (2-5 từ), súc tích, viết HOA hoặc chữ cái đầu. Ví dụ: "XỚI ĐẤT KHÔ CỨNG", "LƯỠI DAO 540 RPM", "ĐẤT TƠI XỐP MỊN".
+   - TUYỆT ĐỐI KHÔNG viết câu văn dài bị ngắt lửng hoặc kết thúc bằng liên từ/giới từ (như 'as', 'and', 'the', 'with', 'toward', dấu phẩy, dấu gạch ngang).
+   - Text overlay KHÔNG phải phụ đề lặp lại lời bình.
+
+3. QUY TẮC THỜI LƯỢNG & TÍNH LIỀN MẠCH:
+   - Segment đầu tiên PHẢI bắt đầu ở 0.0s.
+   - Segment cuối cùng PHẢI kết thúc CHÍNH XÁC ở mốc {duration:.1f}s (không được dừng sớm hơn).
+   - Mọi segment liền kề nhau không có khoảng trống (start của segment sau bằng end của segment trước).
+
+4. QUY TẮC BẮT BUỘC VỀ DỊCH NGHĨA (voiceover_vi_translation):
 - Với mỗi phân đoạn, ngoài câu lời bình chính 'voiceover' (bằng ngôn ngữ {language.upper()}), BẮT BUỘC cung cấp thêm trường 'voiceover_vi_translation' bằng TIẾNG VIỆT tự nhiên, chân chất, chính xác nghĩa của câu thoại để người dùng đọc hiểu rõ ràng.
 
 Yêu cầu xuất ra JSON duy nhất theo đúng cấu trúc CapCut Interchange v3:

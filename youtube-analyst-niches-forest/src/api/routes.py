@@ -39,6 +39,7 @@ from src.preprocessor.video_preprocessor import LocalVideoPreprocessor
 from src.analyzer.vision_engine import VisionActionEngine
 from src.analyzer.commentary_engine import CommentaryScriptEngine, TEMPLATE_VOICE_DEFAULTS
 from src.analyzer.scene_selector import (
+    build_edit_plan,
     covers_full_video,
     describe_scenes,
     needs_scene_selection,
@@ -462,6 +463,7 @@ def analyze_video(request: AnalyzeRequest):
         )
     except Exception as err:
         logger.warning(f"Scene proposal not saved for {video_id}: {err}")
+    edit_plan = build_edit_plan(visual_timeline, scene_proposal, recommendation.template_id)
     return AnalyzeResponse(
         video_id=video_id,
         contact_sheet_url=f"/api/v1/images/contact-sheet/{video_id}",
@@ -473,6 +475,7 @@ def analyze_video(request: AnalyzeRequest):
         scene_proposal=scene_proposal,
         max_scene_seconds=max_seconds,
         needs_scene_selection=needs_selection,
+        edit_plan=edit_plan,
     )
 
 
@@ -541,7 +544,13 @@ def process_video(request: CommentaryRequest):
             description_focus=request.description_focus,
             narrator_mode=request.narrator_mode,
             scene_note=scene_note or None,
+            scenes=scenes_applied,
+            original_timeline=visual_timeline,
         )
+        if not capcut_script.edit_plan:
+            capcut_script.edit_plan = build_edit_plan(
+                visual_timeline, scenes_applied, request.template_id
+            )
 
         # 4. Chặng 3: Sinh giọng đọc Voiceover TTS nếu được bật
         audio_file_path = None
@@ -623,6 +632,7 @@ def process_video(request: CommentaryRequest):
         narrator_mode=narrator_mode,
         target_feeling=target_feeling,
         scenes_applied=scenes_applied,
+        edit_plan=capcut_script.edit_plan,
         qa_metadata={
             "template_id": template_recommendation.template_id,
             "template_source": template_recommendation.source,
@@ -805,6 +815,8 @@ def generate_script_from_saved_analysis(request: GenerateCommentaryRequest):
             narrator_mode=request.narrator_mode,
             scene_note=scene_note or None,
             direction=direction,
+            scenes=scenes_applied,
+            original_timeline=full_timeline,
         )
         notes = list(dict.fromkeys([
             *script.review_notes,
@@ -834,6 +846,7 @@ def generate_script_from_saved_analysis(request: GenerateCommentaryRequest):
                 scenes_applied=scenes_applied,
                 original_duration_seconds=full_timeline.duration_seconds,
                 direction=direction,
+                edit_plan=script.edit_plan,
             )
         if request.enable_tts:
             tts_engine.synthesize_script(script=script, voice=request.tts_voice, speed=request.tts_speed)
@@ -857,6 +870,7 @@ def generate_script_from_saved_analysis(request: GenerateCommentaryRequest):
             scenes_applied=scenes_applied,
             original_duration_seconds=full_timeline.duration_seconds,
             direction=direction,
+            edit_plan=script.edit_plan,
         )
     except HTTPException:
         raise
@@ -1009,6 +1023,8 @@ def rewrite_commentary(request: RewriteRequest):
             narrator_mode=request.narrator_mode,
             scene_note=_build_scene_note(visual_timeline.duration_seconds, scenes_applied) or None,
             direction=_load_stored_direction(request.video_id),
+            scenes=scenes_applied,
+            original_timeline=visual_timeline,
         )
 
         audio_file_path = None
@@ -1032,7 +1048,12 @@ def rewrite_commentary(request: RewriteRequest):
         scene_note = _build_scene_note(visual_timeline.duration_seconds, scenes_applied)
         if scene_note:
             review_notes = [scene_note] + review_notes
-        return RewriteResponse(video_id=request.video_id, capcut_json=new_script, review_notes=review_notes)
+        return RewriteResponse(
+            video_id=request.video_id,
+            capcut_json=new_script,
+            review_notes=review_notes,
+            edit_plan=new_script.edit_plan,
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi viết lại kịch bản: {str(e)}")
 

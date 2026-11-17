@@ -32,9 +32,17 @@ body {
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: var(--bg-main);
   color: var(--text-main);
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+@media (max-width: 1050px) {
+  body {
+    height: auto;
+    overflow: auto;
+  }
 }
 
 /* TOPBAR */
@@ -155,7 +163,12 @@ body {
   color: var(--accent-blue);
 }
 
-/* MAIN LAYOUT */
+/* MAIN LAYOUT — "Studio Lock": 3 cột khóa chiều cao theo viewport,
+   mỗi panel tự scroll nội bộ (panel-body). Trang không scroll. */
+html, body {
+  height: 100%;
+}
+
 .main-studio {
   display: grid;
   grid-template-columns: minmax(260px, 0.72fr) minmax(360px, 1fr) minmax(440px, 1.22fr);
@@ -165,21 +178,21 @@ body {
   max-width: 1800px;
   width: 100%;
   margin: 0 auto;
-  min-height: calc(100vh - 74px);
+  height: calc(100vh - 64px);
   align-items: stretch;
+  overflow: hidden;
 }
 
 .panel {
   min-width: 0;
   min-height: 0;
+  height: 100%;
   border-radius: 14px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
 }
 
 .panel-header {
-  position: sticky;
-  top: 0;
-  z-index: 5;
+  flex: 0 0 auto;
   min-height: 66px;
   padding: 12px 15px;
   backdrop-filter: blur(12px);
@@ -206,10 +219,184 @@ body {
 }
 
 .panel-body { padding: 16px; }
+.panel-body--scroll {
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1 1 auto;
+  min-height: 0;
+  scrollbar-gutter: stable;
+}
+/* Scrollbar gọn cho vùng scroll nội bộ của panel */
+.panel-body--scroll, .studio-actions, .edit-plan-cuts-list, .timeline-list {
+  scrollbar-width: thin;
+  scrollbar-color: #2c3a52 transparent;
+}
+.panel-body--scroll::-webkit-scrollbar, .studio-actions::-webkit-scrollbar,
+.edit-plan-cuts-list::-webkit-scrollbar, .timeline-list::-webkit-scrollbar {
+  width: 8px;
+}
+.panel-body--scroll::-webkit-scrollbar-thumb, .studio-actions::-webkit-scrollbar-thumb,
+.edit-plan-cuts-list::-webkit-scrollbar-thumb, .timeline-list::-webkit-scrollbar-thumb {
+  background: #2c3a52;
+  border-radius: 99px;
+}
+
+/* Nhóm hóa nội dung Cột 1: mỗi section có tiêu đề rõ ràng */
+.input-section { margin-bottom: 18px; }
+.input-section:last-child { margin-bottom: 0; }
+
+.input-section-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 7px;
+  margin-bottom: 12px;
+}
+
+/* Nút phân tích: sticky dưới đáy cột 1 (không nằm trong vùng scroll) */
+.input-panel-footer {
+  flex: 0 0 auto;
+  padding: 12px 16px 14px;
+  border-top: 1px solid var(--border-color);
+  background: rgba(18, 23, 34, 0.9);
+  backdrop-filter: blur(8px);
+}
+
 .inspector-panel .contact-sheet-container { min-height: 230px; }
-.inspector-panel .contact-sheet-img { max-height: min(42vh, 420px); object-fit: contain; }
+.inspector-panel .contact-sheet-img { max-height: min(36vh, 380px); object-fit: contain; }
 .editor-panel .segments-list { min-height: 220px; }
-.editor-panel .studio-actions { position: sticky; bottom: -16px; z-index: 4; }
+
+/* Cột 3: meta ribbon + segments là vùng scroll; voiceover player + menubar
+   tách ra .editor-panel-footer (chân cột, không nằm trong vùng scroll) */
+.editor-panel .panel-body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.editor-panel .segments-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #2c3a52 transparent;
+}
+
+/* Menubar chân cột 3: 1 hàng, 3 nhóm nằm ngang (Xuất / Media & phụ đề / Hành động) */
+.editor-panel-footer {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--border-color);
+  background: rgba(18, 23, 34, 0.95);
+  backdrop-filter: blur(8px);
+  padding: 10px 14px 12px;
+}
+
+.editor-panel-footer .studio-actions {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr 0.95fr;
+  gap: 10px;
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+  background: transparent;
+  backdrop-filter: none;
+}
+
+.editor-panel-footer .actions-group {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.editor-panel-footer .actions-group-label {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+  padding: 0 2px 2px;
+}
+
+.editor-panel-footer .actions-group .btn-secondary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.editor-panel-footer .actions-group .btn-secondary span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.editor-panel-footer .actions-group .btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #475569;
+}
+
+/* Giữ màu đặc thù cho 3 nút chính */
+.editor-panel-footer .btn-bundle {
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.18), rgba(249, 115, 22, 0.18));
+  border-color: rgba(234, 179, 8, 0.5);
+  color: #fde047;
+  font-weight: 700;
+}
+.editor-panel-footer .btn-bundle:hover {
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.3), rgba(249, 115, 22, 0.3));
+  border-color: rgba(234, 179, 8, 0.8);
+}
+.editor-panel-footer .btn-highlight {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.4);
+  color: var(--accent-cyan);
+}
+.editor-panel-footer .btn-highlight:hover {
+  background: rgba(59, 130, 246, 0.25);
+}
+.editor-panel-footer .btn-audio-regen {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #34d399;
+}
+.editor-panel-footer .btn-audio-regen:hover {
+  background: rgba(16, 185, 129, 0.25);
+}
+
+/* Voiceover player gọn hơn trong menubar */
+.editor-panel-footer .voiceover-player-box {
+  margin-top: 0;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+}
+.editor-panel-footer .voiceover-player-box audio {
+  height: 30px;
+  margin-top: 6px;
+}
+
+/* Nút "Lưu bản sửa" + status do app.js inject (SPEC-01) */
+.editor-panel-footer .actions-status {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--accent-yellow);
+  padding: 2px 0;
+}
 
 @media (max-width: 1350px) {
   .main-studio {
@@ -223,22 +410,41 @@ body {
 }
 
 @media (max-width: 1050px) {
+  /* Màn hình hẹp: trả lại scroll trang cho cột giữa & cột phải,
+     cột đầu vẫn là 2 lưới nội bộ. */
   .main-studio {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     align-items: start;
+    height: auto;
+    overflow: visible;
   }
   .input-panel { grid-column: 1 / -1; }
-  .input-panel .panel-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; }
-  .input-panel .tts-config-box, .input-panel #btnProcess { grid-column: 1 / -1; }
-  .panel { max-height: calc(100vh - 95px); }
+  .input-panel .panel-body--scroll {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 18px;
+    overflow: visible;
+  }
+  .input-panel .input-section { grid-column: auto; }
+  .input-panel .input-section[data-section="step2"],
+  .input-panel .input-panel-footer { grid-column: 1 / -1; }
+  .inspector-panel .panel-body { overflow: visible; }
+  .editor-panel .panel-body { overflow: visible; }
+  .editor-panel .segments-list { overflow: visible; flex: none; }
+}
+
+@media (max-width: 1200px) {
+  .editor-panel-footer .studio-actions { grid-template-columns: 1fr 1fr; }
+  .editor-panel-footer .actions-group--actions { grid-column: 1 / -1; }
 }
 
 @media (max-width: 720px) {
-  .main-studio { display: flex; flex-direction: column; padding: 10px; }
+  .main-studio { display: flex; flex-direction: column; padding: 10px; height: auto; overflow: visible; gap: 10px; }
   .panel { width: 100%; max-height: none; }
-  .input-panel .panel-body { display: block; }
-  .panel-header { position: static; }
-  .editor-panel .studio-actions { position: static; }
+  .input-panel .panel-body--scroll { display: block; }
+  .panel-header { min-height: 0; }
+  .editor-panel-footer .studio-actions { grid-template-columns: 1fr; }
+  .editor-panel-footer .actions-group--actions { grid-column: auto; }
   .inspector-panel .contact-sheet-container { min-height: 170px; }
 }
 
@@ -270,10 +476,16 @@ body {
   color: #fff;
 }
 
-.panel-body {
-  padding: 16px 18px;
+/* Cột 2: toàn bộ body là vùng scroll nội bộ (contact sheet → audio → timeline → edit plan) */
+.inspector-panel .panel-body {
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
-  flex: 1;
+  overflow-x: hidden;
+  flex: 1 1 auto;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: #2c3a52 transparent;
 }
 
 /* INPUT FORM */
@@ -819,14 +1031,31 @@ body {
   border-color: var(--accent-purple);
 }
 
-/* TOOLBAR */
-.studio-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-top: auto;
-  padding-top: 12px;
-  border-top: 1px solid var(--border-color);
+/* Rule cũ (sticky toolbar) đã thay thế bằng .editor-panel-footer ở trên.
+   Giữ lại .actions-group / .actions-group-label / .actions-status như fallback
+   cho các nơi dùng .studio-actions bên ngoài .editor-panel-footer. */
+.actions-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.actions-group-label {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+  padding: 0 2px;
+}
+
+/* Nút "Lưu bản sửa" do app.js inject (SPEC-01) + dòng trạng thái */
+.actions-status {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--accent-yellow);
+  padding: 0 2px;
 }
 
 .btn-secondary {
@@ -1200,4 +1429,248 @@ input:checked + .slider:before {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+}
+
+/* EDIT PLAN & NARRATIVE GUIDANCE */
+.edit-plan-box {
+  margin-top: 14px;
+  background: rgba(18, 23, 34, 0.9);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.edit-plan-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.edit-plan-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.edit-plan-badge {
+  font-size: 0.72rem;
+  background: rgba(6, 182, 212, 0.15);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(6, 182, 212, 0.35);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.edit-plan-strategy {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: #cbd5e1;
+  background: rgba(30, 41, 59, 0.5);
+  border-left: 3px solid var(--accent-cyan);
+  padding: 6px 10px;
+  border-radius: 0 6px 6px 0;
+}
+
+.edit-plan-timeline-bar {
+  display: flex;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.timeline-bar-segment {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  transition: opacity 0.2s, transform 0.15s;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 4px;
+}
+
+.timeline-bar-segment:hover {
+  opacity: 0.9;
+  filter: brightness(1.2);
+}
+
+.edit-plan-cuts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 340px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.edit-cut-card {
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  transition: all 0.2s;
+}
+
+.edit-cut-card:hover {
+  background: rgba(30, 41, 59, 0.9);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.edit-cut-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.edit-cut-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.edit-cut-times {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.edit-cut-times strong {
+  color: var(--accent-cyan);
+}
+
+.edit-cut-details {
+  font-size: 0.74rem;
+  color: #94a3b8;
+  line-height: 1.35;
+}
+
+.edit-cut-guidance {
+  font-size: 0.73rem;
+  color: #fde047;
+  background: rgba(234, 179, 8, 0.1);
+  border-left: 2px solid #eab308;
+  padding: 4px 6px;
+  border-radius: 0 4px 4px 0;
+  line-height: 1.3;
+}
+
+.edit-plan-note {
+  font-size: 0.74rem;
+  color: #94a3b8;
+  font-style: italic;
+  padding-top: 4px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+}
+
+/* ROLE BADGES */
+.role-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.role-hook {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.role-setup {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.role-action {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.role-climax {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.role-payoff {
+  background: rgba(139, 92, 246, 0.2);
+  color: #c084fc;
+  border: 1px solid rgba(139, 92, 246, 0.4);
+}
+
+.role-transition {
+  background: rgba(148, 163, 184, 0.2);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+}
+
+/* SEGMENT ENHANCEMENTS */
+.source-time-tag {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.segment-edit-guidance {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  margin-top: 6px;
+  margin-bottom: 6px;
+  font-size: 0.76rem;
+  color: #fef08a;
+  line-height: 1.35;
+}
+
+.segment-edit-guidance .guidance-icon {
+  flex-shrink: 0;
+  font-size: 0.85rem;
+}
+
+.text-overlay-warning {
+  font-size: 0.7rem;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 4px;
 }

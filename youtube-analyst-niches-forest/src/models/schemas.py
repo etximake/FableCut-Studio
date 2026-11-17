@@ -83,6 +83,33 @@ class SceneRange(BaseModel):
     start: float = Field(..., ge=0.0, description="Giây bắt đầu trong video gốc")
     end: float = Field(..., ge=0.0, description="Giây kết thúc trong video gốc")
     reason: str = Field(default="", description="Vì sao cảnh này được chọn")
+    role: Optional[str] = Field(default=None, description="Vai trò kể chuyện: hook, setup, action, climax, payoff")
+    edit_guidance: Optional[str] = Field(default=None, description="Chỉ dẫn cắt gọt cho cảnh này")
+
+
+class EditCut(BaseModel):
+    """Một nhịp cắt trong kế hoạch dựng phim (Edit Plan)"""
+    order: int = Field(default=1, description="Thứ tự đoạn dựng trong video xuất ra")
+    role: str = Field(default="action", description="Vai trò: hook, setup, action, climax, payoff, transition")
+    source_start: float = Field(..., description="Giây bắt đầu trên video gốc")
+    source_end: float = Field(..., description="Giây kết thúc trên video gốc")
+    output_start: float = Field(..., description="Giây bắt đầu trên timeline xuất ra")
+    output_end: float = Field(..., description="Giây kết thúc trên timeline xuất ra")
+    duration: float = Field(..., description="Thời lượng đoạn cắt")
+    reason: str = Field(default="", description="Lý do chọn đoạn này")
+    visual_action: str = Field(default="", description="Hành động thị giác diễn ra")
+    suggested_transition: Optional[str] = Field(default="hard_cut", description="Chuyển cảnh gợi ý: hard_cut, dissolve, whip_pan, zoom_in")
+    speed_factor: float = Field(default=1.0, description="Tốc độ clip (1.0 = chuẩn, 1.2 = tua nhẹ hành động lặp)")
+    edit_guidance: Optional[str] = Field(default="", description="Chỉ dẫn chi tiết cho editor")
+
+
+class EditPlan(BaseModel):
+    """Kế hoạch dựng phim & chỉ dẫn cắt ghép hoàn chỉnh cho video Short"""
+    target_duration_seconds: float = Field(..., description="Thời lượng tổng sau khi dựng")
+    original_duration_seconds: float = Field(..., description="Thời lượng video gốc")
+    narrative_strategy: str = Field(default="", description="Chiến lược kể chuyện & nhịp cắt gọt tổng thể")
+    cuts: List[EditCut] = Field(default_factory=list, description="Danh sách các phân đoạn cắt ghép theo thứ tự")
+    trimmed_sections_note: str = Field(default="", description="Ghi chú về các đoạn thừa/chết đã lược bỏ")
 
 # ==========================================
 # 3. CHẶNG 2: KỊCH BẢN LỜI BÌNH & CAPCUT INTERCHANGE V3
@@ -126,6 +153,8 @@ class CommentarySegment(BaseModel):
     sfx_cue: Optional[SFXCue] = None
     visual_hint: str = Field(default="", description="Gợi ý góc quay / hiệu ứng cho editor")
     style: Optional[dict] = None
+    edit_guidance: Optional[str] = Field(default="", description="Chỉ dẫn cắt ghép / nhịp dựng chi tiết cho editor")
+    source_time_range: Optional[TimeRange] = Field(default=None, description="Mốc thời gian tương ứng trên video gốc")
 
     @field_validator("beat", mode="before")
     def normalize_beat(cls, v):
@@ -182,6 +211,7 @@ class CapCutCommentaryInterchange(BaseModel):
     note: Optional[str] = None
     video_metadata: CapCutMetadata
     segments: List[CommentarySegment]
+    edit_plan: Optional[EditPlan] = Field(default=None, description="Kế hoạch dựng phim và cắt ghép chi tiết")
     review_notes: List[str] = Field(default_factory=list, exclude=True)
 
 # ==========================================
@@ -206,6 +236,7 @@ class AnalyzeResponse(BaseModel):
     scene_proposal: List[SceneRange] = Field(default_factory=list, description="Cảnh AI gợi ý ghép thành Short (mốc giây gốc)")
     max_scene_seconds: float = Field(default=60.0, description="Tổng thời lượng tối đa của các cảnh đã chọn")
     needs_scene_selection: bool = Field(default=False, description="True khi video dài hơn max_scene_seconds")
+    edit_plan: Optional[EditPlan] = Field(default=None, description="Kế hoạch dựng phim và cắt ghép gợi ý")
 
 
 class CommentaryRequest(BaseModel):
@@ -267,6 +298,7 @@ class ProcessVideoResponse(BaseModel):
     target_feeling: Optional[str] = None
     qa_metadata: dict = Field(default_factory=dict)
     scenes_applied: List[SceneRange] = Field(default_factory=list, description="Cảnh thực sự dùng cho kịch bản (mốc giây gốc)")
+    edit_plan: Optional[EditPlan] = Field(default=None, description="Kế hoạch dựng phim và cắt ghép chi tiết")
 
 
 class DirectionBeat(BaseModel):
@@ -285,6 +317,7 @@ class DirectionBeat(BaseModel):
     overlay_text: str = Field(default="", max_length=80, description="Chữ overlay dự kiến; rỗng = không có chữ")
     sfx_cue: Optional[str] = Field(default=None, max_length=80, description="Hiệu ứng âm thanh dự kiến; None = không SFX")
     pace: Literal["slow", "normal", "brisk"] = Field(default="normal", description="Nhịp kể của beat này")
+    edit_guidance: Optional[str] = Field(default="", max_length=300, description="Chỉ dẫn cắt ghép / xử lý hình ảnh cho beat này")
 
 
 class Direction(BaseModel):
@@ -375,6 +408,7 @@ class CommentaryGenerationResponse(BaseModel):
     scenes_applied: List[SceneRange] = Field(default_factory=list, description="Cảnh thực sự dùng cho kịch bản (mốc giây gốc)")
     original_duration_seconds: Optional[float] = Field(default=None, description="Thời lượng video gốc trước khi chọn cảnh")
     direction: Optional[Direction] = Field(default=None, description="Bản Định hướng kịch bản đã tuân theo")
+    edit_plan: Optional[EditPlan] = Field(default=None, description="Kế hoạch dựng phim và cắt ghép chi tiết")
 
 
 class RewriteResponse(BaseModel):
@@ -382,6 +416,7 @@ class RewriteResponse(BaseModel):
     video_id: str
     capcut_json: CapCutCommentaryInterchange
     review_notes: List[str] = Field(default_factory=list)
+    edit_plan: Optional[EditPlan] = Field(default=None, description="Kế hoạch dựng phim và cắt ghép chi tiết")
 
 
 class ActionBlockUpdate(BaseModel):

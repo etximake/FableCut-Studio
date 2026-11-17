@@ -10,11 +10,14 @@ Module này chỉ chứa hàm thuần túy (không đọc file, không gọi LLM
 kiểm thử: gợi ý cảnh từ timeline, kiểm tra cảnh người dùng chốt, và dồn
 timeline theo cảnh đã chọn. Người dùng luôn có quyền sửa danh sách cảnh
 trước khi viết kịch bản; gợi ý ở đây chỉ là điểm bắt đầu.
+
+EditPlan giữ rõ mốc video nguồn và mốc timeline đầu ra để hướng dẫn editor,
+không thay đổi hợp đồng timeline liền mạch của FableCut.
 """
 
 from typing import List, Optional, Tuple
 
-from src.models.schemas import ActionBlock, SceneRange, TimeRange, VisualActionTimeline
+from src.models.schemas import ActionBlock, EditCut, EditPlan, SceneRange, TimeRange, VisualActionTimeline
 
 MIN_SCENE_SECONDS = 2.0
 # Gợi ý dừng khi cảnh còn lại kém giá trị hẳn so với cảnh tốt nhất: giới hạn
@@ -190,7 +193,173 @@ def propose_scenes(
         overflow = total - max_seconds
         last = merged[-1]
         merged[-1] = SceneRange(start=last.start, end=round(last.end - overflow, 3), reason=last.reason)
+
+    # Gán vai trò (role) và chỉ dẫn dựng (edit_guidance) cho từng cảnh
+    for idx, sc in enumerate(merged):
+        if idx == 0 and sc.start <= 5.0:
+            sc.role = "hook"
+            sc.edit_guidance = "Cắt giật vào hành động mở đầu, bỏ đoạn chờ máy/chuẩn bị để giữ chân người xem."
+        elif idx == len(merged) - 1:
+            sc.role = "payoff"
+            sc.edit_guidance = "Cắt rộng cho thấy thành quả hoặc biến đổi sau toàn bộ quá trình."
+        elif len(merged) >= 4 and idx == 1:
+            sc.role = "setup"
+            sc.edit_guidance = "Giữ một nhịp ngắn để xác lập bối cảnh và thao tác sắp diễn ra."
+        elif len(merged) >= 3 and idx == len(merged) - 2:
+            sc.role = "climax"
+            sc.edit_guidance = "Cận cảnh khoảnh khắc tác động/áp lực mạnh nhất, giữ nguyên tốc độ để rõ chi tiết."
+        else:
+            sc.role = "action"
+            sc.edit_guidance = "Giữ nhịp di chuyển ổn định, loại bỏ rung lắc camera hoặc khoảng lặng."
+
     return merged
+
+
+def build_edit_plan(
+    timeline: VisualActionTimeline,
+    scenes: List[SceneRange],
+    template_id: Optional[str] = None,
+) -> EditPlan:
+    """Xây dựng Kế hoạch Dựng phim & Cắt ghép (Edit Plan) chi tiết.
+
+    Hoạt động cho cả video < 60s và video > 60s:
+    - Mốc nguồn (source_start, source_end) vs Mốc đầu ra (output_start, output_end).
+    - Vai trò từng cú cắt (hook, setup, action, climax, payoff).
+    - Chỉ dẫn dựng chi tiết (transition, speed, camera treatment).
+    - Thống kê các đoạn thừa/chết đã lược bỏ.
+    """
+    total_orig = timeline.duration_seconds
+    blocks = timeline.action_timeline or []
+
+    strategy_map = {
+        "how-it-works": "Kể theo cấu trúc câu hỏi cơ chế -> bóc tách từng bước thao tác -> khoảnh khắc hiệu quả -> đúc kết kết quả.",
+        "shock-hook": "Mở đầu bằng cú shock thị giác mạnh nhất -> giải thích sự thật phía sau -> cao trào xử lý.",
+        "before-after": "Tạo tương phản mạnh mẽ giữa trạng thái ban đầu và sự biến đổi ngoạn mục ở cuối.",
+        "satisfying": "Tập trung vào nhịp cắt mượt mà, chuyển động lặp đi lặp lại êm ái, phóng đại âm thanh vật lý.",
+        "hazard-rescue": "Tạo cảm giác cấp bách ở đầu -> chẩn đoán tình huống -> hành động giải cứu quyết liệt.",
+        "story": "Xây dựng bối cảnh nhân vật -> thử thách gặp phải -> hành động vượt khó -> bài học/thành quả.",
+    }
+    strategy = strategy_map.get(template_id or "", "Tối ưu hóa mạch kể chuyện: mở đầu lôi cuốn, lược bỏ đoạn chết, tập trung vào khoảnh khắc giá trị cao.")
+
+    cuts: List[EditCut] = []
+
+    if not scenes or covers_full_video(scenes, total_orig):
+        # Video giữ nguyên hoặc dưới 60s
+        if blocks:
+            # Đặt overlay các event ngắn thành 4 hồi lớn có ý nghĩa để editor
+            # nhìn thấy hook/setup/action/climax/payoff thay vì danh sách vụn.
+            groups: List[Tuple[int, int]] = []
+            group_count = min(5, len(blocks))
+            for group_index in range(group_count):
+                start_idx = round(group_index * len(blocks) / group_count)
+                end_idx = round((group_index + 1) * len(blocks) / group_count)
+                if end_idx > start_idx:
+                    groups.append((start_idx, end_idx))
+            roles = ["hook", "setup", "action", "climax", "payoff"]
+            guidance_by_role = {
+                "hook": "Mở ngay bằng hình ảnh/động tác gây tò mò; bỏ phần chuẩn bị và giữ khung hình ngắn.",
+                "setup": "Thiết lập chủ thể, bối cảnh hoặc vấn đề trong một nhịp gọn trước khi vào thao tác.",
+                "action": "Nối các bước quan trọng; cắt bỏ khoảng lặng và giữ liên tục hướng chuyển động.",
+                "climax": "Giữ trọn khoảnh khắc tác động hoặc biến đổi mạnh nhất; tránh cắt trước điểm kết thúc.",
+                "payoff": "Cho người xem thấy kết quả sau hành động; giữ đủ lâu để đọc được thay đổi cuối.",
+            }
+            cursor = 0.0
+            for group_index, (block_start, block_end) in enumerate(groups):
+                group = blocks[block_start:block_end]
+                b_start = round(group[0].time_range.start, 3)
+                b_end = round(group[-1].time_range.end, 3)
+                dur = round(b_end - b_start, 3)
+                if dur < 0.1:
+                    continue
+                role = roles[group_index] if group_count >= 4 else ("hook" if group_index == 0 else ("payoff" if group_index == group_count - 1 else "action"))
+                guidance = guidance_by_role.get(role, "Duy trì góc máy ổn định, tập trung vào chi tiết quan trọng nhất.")
+                actions = [b.visual_action for b in group if b.visual_action]
+                cuts.append(EditCut(
+                    order=len(cuts) + 1,
+                    role=role,
+                    source_start=b_start,
+                    source_end=b_end,
+                    output_start=round(cursor, 3),
+                    output_end=round(cursor + dur, 3),
+                    duration=dur,
+                    reason=actions[0] if actions else f"Phân đoạn {group_index + 1}",
+                    visual_action="; ".join(actions[:3]),
+                    suggested_transition="hard_cut",
+                    speed_factor=1.0,
+                    edit_guidance=guidance,
+                ))
+                cursor += dur
+        if not cuts:
+            cuts.append(EditCut(
+                order=1,
+                role="hook",
+                source_start=0.0,
+                source_end=round(total_orig, 3),
+                output_start=0.0,
+                output_end=round(total_orig, 3),
+                duration=round(total_orig, 3),
+                reason="Toàn bộ video gốc.",
+                visual_action=timeline.subject_matter or "Hành động chính trong video",
+                suggested_transition="hard_cut",
+                speed_factor=1.0,
+                edit_guidance="Dùng toàn bộ video gốc, tập trung tạo điểm nhấn bằng lời bình và text overlay súc tích.",
+            ))
+        target_dur = round(total_orig, 3)
+        trimmed_note = "Video nằm trong thời lượng Short; giữ trọn vẹn toàn bộ timeline và tối ưu nhịp dựng qua lời bình."
+    else:
+        # Video dài đã chọn cảnh
+        ordered = sorted(scenes, key=lambda s: s.start)
+        cursor = 0.0
+        prev_end = None
+        for idx, sc in enumerate(ordered):
+            sc_dur = round(sc.end - sc.start, 3)
+            out_s = round(cursor, 3)
+            out_e = round(cursor + sc_dur, 3)
+
+            trans = "hard_cut"
+            if prev_end is not None and (sc.start - prev_end) > 5.0:
+                trans = "dissolve" if (sc.start - prev_end) > 15.0 else "whip_pan"
+
+            overlapping_actions = [
+                b.visual_action for b in blocks
+                if max(b.time_range.start, sc.start) < min(b.time_range.end, sc.end) and b.visual_action
+            ]
+            action_desc = "; ".join(overlapping_actions[:2]) if overlapping_actions else sc.reason
+
+            role = sc.role or ("hook" if idx == 0 else ("payoff" if idx == len(ordered) - 1 else "action"))
+            guidance = sc.edit_guidance or (
+                "Cắt nhanh vào hành động, bỏ thời gian chết." if role == "hook"
+                else ("Giữ nguyên khung hình đúc kết kết quả." if role == "payoff"
+                      else "Cắt gọn đầu cuối, đảm bảo không có khung hình rung lắc.")
+            )
+
+            cuts.append(EditCut(
+                order=len(cuts) + 1,
+                role=role,
+                source_start=sc.start,
+                source_end=sc.end,
+                output_start=out_s,
+                output_end=out_e,
+                duration=sc_dur,
+                reason=sc.reason or f"Cảnh {idx + 1}",
+                visual_action=action_desc or "",
+                suggested_transition=trans,
+                speed_factor=1.0,
+                edit_guidance=guidance,
+            ))
+            cursor += sc_dur
+            prev_end = sc.end
+        target_dur = round(cursor, 3)
+        trimmed_sec = max(0.0, round(total_orig - target_dur, 1))
+        trimmed_note = f"Đã lược bỏ {trimmed_sec:.1f}s đoạn phụ/thừa trong video gốc để cô đọng câu chuyện thành {target_dur:.1f}s cuốn hút."
+
+    return EditPlan(
+        target_duration_seconds=target_dur,
+        original_duration_seconds=round(total_orig, 3),
+        narrative_strategy=strategy,
+        cuts=cuts,
+        trimmed_sections_note=trimmed_note,
+    )
 
 
 def rebase_timeline(

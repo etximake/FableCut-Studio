@@ -386,9 +386,9 @@ def test_generate_script_applies_confirmed_scenes_without_media(tmp_path, temp_d
     assert captured["duration"] == 40.0
     assert captured["timeline"].duration_seconds == 40.0
     assert captured["scene_note"]
-    assert response.json()["scenes_applied"] == [
-        {"start": 10.0, "end": 40.0, "reason": ""},
-        {"start": 70.0, "end": 80.0, "reason": ""},
+    assert [(s["start"], s["end"]) for s in response.json()["scenes_applied"]] == [
+        (10.0, 40.0),
+        (70.0, 80.0),
     ]
     assert response.json()["original_duration_seconds"] == 90.0
 
